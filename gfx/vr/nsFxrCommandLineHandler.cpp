@@ -27,8 +27,11 @@
 #include "WinUtils.h"
 
 #include "VRShMem.h"
+#include "openvr.h"
 
 NS_IMPL_ISUPPORTS(nsFxrCommandLineHandler, nsICommandLineHandler)
+
+vr::VROverlayHandle_t CreateOpenVROverlay();
 
 // nsFxrCommandLineHandler acts in the middle of bootstrapping Firefox
 // Reality with desktop Firefox. Details of the processes involved are
@@ -90,45 +93,28 @@ nsFxrCommandLineHandler::Handle(nsICommandLine* aCmdLine) {
 
     MOZ_ASSERT(result == NS_OK);
 
-    nsPIDOMWindowOuter* newWindowOuter = nsPIDOMWindowOuter::From(newWindow);
-    FxRWindowManager::GetInstance()->AddWindow(newWindowOuter);
+    if (FxRWindowManager::GetInstance()->VRinit()) {
 
-    // Set ForceFullScreenInWidget so that full-screen (in an FxR window)
-    // fills only the window and thus the same texture that will already be
-    // shared with the host. Also, this is set here per-window because
-    // changing the related pref would impact all browser window instances.
-    newWindowOuter->ForceFullScreenInWidget();
-
-    // Send the window's HWND to vrhost through VRShMem
-    mozilla::gfx::VRShMem shmem(nullptr, true /*aRequiresMutex*/);
-    if (shmem.JoinShMem()) {
-      mozilla::gfx::VRWindowState windowState = {0};
-      shmem.PullWindowState(windowState);
-
-      nsCOMPtr<nsIWidget> newWidget =
-          mozilla::widget::WidgetUtils::DOMWindowToWidget(newWindowOuter);
-      HWND hwndWidget = (HWND)newWidget->GetNativeData(NS_NATIVE_WINDOW);
-
-      // The CLH should populate these members first
-      MOZ_ASSERT(windowState.hwndFx == 0);
-      MOZ_ASSERT(windowState.textureFx == nullptr);
-      windowState.hwndFx = (uint64_t)hwndWidget;
-
-      shmem.PushWindowState(windowState);
-      shmem.LeaveShMem();
-
-      // The GPU process will notify the host that window creation is complete
-      // after output data is set in VRShMem
-      newWidget->RequestFxrOutput();
-    } else {
-#ifndef NIGHTLY_BUILD
-      MOZ_CRASH("failed to start with --fxr");
-#endif
+      nsPIDOMWindowOuter* newWindowOuter = nsPIDOMWindowOuter::From(newWindow);
+      if (FxRWindowManager::GetInstance()->AddWindow(newWindowOuter)) {
+        // Set ForceFullScreenInWidget so that full-screen (in an FxR window)
+        // fills only the window and thus the same texture that will already be
+        // shared with the host. Also, this is set here per-window because
+        // changing the related pref would impact all browser window instances.
+        newWindowOuter->ForceFullScreenInWidget();
+      }
+      else {
+        MOZ_ASSERT(false, "Failed to create Overlay for FxR");
+      }
     }
+    else {
+      MOZ_ASSERT(false, "Failed to init OpenVR for FxR");
+    }    
   }
 
   return NS_OK;
 }
+
 
 NS_IMETHODIMP
 nsFxrCommandLineHandler::GetHelpInfo(nsACString& aResult) {
