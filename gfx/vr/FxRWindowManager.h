@@ -5,9 +5,13 @@
 
 #pragma once
 #include <cstdint>
+#include "openvr.h"
 
 class nsPIDOMWindowOuter;
 class nsWindow;
+namespace vr {
+  class IVRSystem;
+};
 
 // FxRWindowManager is a singleton that is responsible for tracking all of
 // the top-level windows created for Firefox Reality on Desktop. Only a
@@ -16,7 +20,10 @@ class FxRWindowManager final {
  public:
   static FxRWindowManager* GetInstance();
 
-  void AddWindow(nsPIDOMWindowOuter* aWindow);
+  bool VRinit();
+  bool CreateOverlayForWindow();
+
+  bool AddWindow(nsPIDOMWindowOuter* aWindow);
   bool IsFxRWindow(uint64_t aOuterWindowID);
   bool IsFxRWindow(const nsWindow* aWindow) const;
   uint64_t GetWindowID() const;
@@ -24,8 +31,16 @@ class FxRWindowManager final {
  private:
   FxRWindowManager();
 
+  vr::IVRSystem * m_pHMD;
+  int32_t m_dxgiAdapterIndex;
+
   // Only a single window is supported for tracking. Support for multiple
   // windows will require a data structure to collect windows as they are
   // created.
-  nsPIDOMWindowOuter* mWindow;
+  struct FxRWindow{
+    nsPIDOMWindowOuter* mWindow;
+    vr::VROverlayHandle_t m_ulOverlayHandle;
+    vr::VROverlayHandle_t m_ulOverlayThumbnailHandle;
+  } mFxRWindow;
+  //nsPIDOMWindowOuter* mWindow;
 };
