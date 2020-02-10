@@ -86,8 +86,7 @@ IPDL_SOURCES = [
     "ipc/PVRManager.ipdl",
 ]
 
-# For now, only enable FxR CLH for Windows Nightly builds (BUG 1565349)
-if CONFIG["OS_ARCH"] == "WINNT" and CONFIG["NIGHTLY_BUILD"]:
+if CONFIG["OS_ARCH"] == "WINNT":
     XPCOM_MANIFESTS += [
         "components.conf",
     ]

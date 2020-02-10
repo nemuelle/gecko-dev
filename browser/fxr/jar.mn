@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#if defined(NIGHTLY_BUILD)
+
 browser.jar:
 %  content fxr %content/browser/fxr/
    content/browser/fxr/common.css               (content/common.css)
@@ -29,4 +29,3 @@ browser.jar:
    content/browser/fxr/assets/icon-stop-reload.svg      (content/assets/icon-stop-reload.svg)
    content/browser/fxr/assets/icon-toggle-off.png       (content/assets/icon-toggle-off.png)
    content/browser/fxr/assets/icon-toggle-on.png        (content/assets/icon-toggle-on.png)
-#endif
