@@ -21,30 +21,108 @@ FxRWindowManager* FxRWindowManager::GetInstance() {
   return sFxrWinMgrInstance;
 }
 
-FxRWindowManager::FxRWindowManager() : mWindow(nullptr) {}
+FxRWindowManager::FxRWindowManager() :
+  m_pHMD(nullptr),
+  m_dxgiAdapterIndex(-1),
+  mFxRWindow({ 0 })
+{}
+
+// Initialize an instance of OpenVR for the window manager
+bool FxRWindowManager::VRinit() {
+  vr::EVRInitError eError = vr::VRInitError_None;
+  if (m_pHMD == nullptr) {
+    m_pHMD = vr::VR_Init(&eError, vr::VRApplication_Overlay);
+    if (eError == vr::VRInitError_None)
+    {
+      m_pHMD->GetDXGIOutputInfo(&m_dxgiAdapterIndex);
+      MOZ_ASSERT(m_dxgiAdapterIndex != -1);
+    }
+  }
+
+  return (eError == vr::VRInitError_None);
+}
 
 // Track this new Firefox Reality window instance
-void FxRWindowManager::AddWindow(nsPIDOMWindowOuter* aWindow) {
-  if (mWindow != nullptr) {
+bool FxRWindowManager::AddWindow(nsPIDOMWindowOuter* aWindow) {
+  if (mFxRWindow.mWindow != nullptr) {
     MOZ_CRASH("Only one window is supported");
   }
 
-  mWindow = aWindow;
+  mFxRWindow.mWindow = aWindow;
+
+  return CreateOverlayForWindow();
+}
+
+bool FxRWindowManager::CreateOverlayForWindow() {
+  std::string sKey = std::string("Firefox Reality");
+  vr::VROverlayError overlayError = vr::VROverlay()->CreateOverlay(
+    sKey.c_str(),
+    sKey.c_str(),
+    &mFxRWindow.m_ulOverlayHandle
+  );
+
+  if (overlayError == vr::VROverlayError_None) {
+    // Start with default width of 1.5m
+    overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
+      mFxRWindow.m_ulOverlayHandle,
+      1.5f
+    );
+
+    if (overlayError == vr::VROverlayError_None) {
+      // Set the transform for the overlay position
+      vr::HmdMatrix34_t transform = {
+        1.0f, 0.0f, 0.0f,  0.0f, // no move in x direction
+        0.0f, 1.0f, 0.0f,  3.0f, // +y to move it up
+        0.0f, 0.0f, 1.0f, -3.0f  // -z to move it forward from the origin
+      };
+      overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+        mFxRWindow.m_ulOverlayHandle,
+        vr::TrackingUniverseStanding,
+        &transform
+      );
+
+      if (overlayError == vr::VROverlayError_None) {
+        // For now, set the overlay to a system image. This will be replaced by
+        // the Window later.
+        overlayError = vr::VROverlay()->SetOverlayFromFile(
+          mFxRWindow.m_ulOverlayHandle,
+          "C:\\Windows\\System32\\SecurityAndMaintenance_Alert.png"
+        );
+
+        if (overlayError == vr::VROverlayError_None) {
+          // Finally, show the prepared overlay
+          overlayError = vr::VROverlay()->ShowOverlay(mFxRWindow.m_ulOverlayHandle);
+        }
+      }
+    }
+  }
+
+  if (overlayError != vr::VROverlayError_None) {
+    overlayError = vr::VROverlay()->DestroyOverlay(mFxRWindow.m_ulOverlayHandle);
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+    mFxRWindow = { 0 };
+
+    return false;
+  }
+  else {
+    return true;
+  }
 }
 
 // Returns true if the window at the provided ID was created for Firefox Reality
 bool FxRWindowManager::IsFxRWindow(uint64_t aOuterWindowID) {
-  return (mWindow != nullptr) && (mWindow->WindowID() == aOuterWindowID);
+  return (mFxRWindow.mWindow != nullptr) && (mFxRWindow.mWindow->WindowID() == aOuterWindowID);
 }
 
 // Returns true if the window was created for Firefox Reality
 bool FxRWindowManager::IsFxRWindow(const nsWindow* aWindow) const {
-  return (mWindow != nullptr) &&
+  return (mFxRWindow.mWindow != nullptr) &&
          (aWindow ==
-          mozilla::widget::WidgetUtils::DOMWindowToWidget(mWindow).take());
+          mozilla::widget::WidgetUtils::DOMWindowToWidget(mFxRWindow.mWindow).take());
 }
 
 uint64_t FxRWindowManager::GetWindowID() const {
-  MOZ_ASSERT(mWindow);
-  return mWindow->WindowID();
+  MOZ_ASSERT(mFxRWindow.mWindow);
+  return mFxRWindow.mWindow->WindowID();
 }
