@@ -108,7 +108,7 @@ class WinCompositorWidget : public CompositorWidget,
     return mTransparentSurfaceLock;
   }
 
-  void RequestFxrOutput();
+  void RequestFxrOutput(uint64_t aOverlayId);
   bool HasFxrOutputHandler() const { return mFxrHandler != nullptr; }
   FxROutputHandler* GetFxrOutputHandler() const { return mFxrHandler.get(); }
 
