@@ -293,7 +293,7 @@ parent:
     returns (DxgiAdapterDesc desc);
 
   // To set up sharing the composited output to Firefox Reality on Desktop
-  async RequestFxrOutput();
+  async RequestFxrOutput(uint64_t aOverlayId);
 
   // Actor that represents one WebGL context.
   async PWebGL();

@@ -574,7 +574,7 @@ class nsWindow final : public nsWindowBase {
       const RECT& aRequiredClip);
 
   void CreateCompositor() override;
-  void RequestFxrOutput();
+  void RequestFxrOutput(uint64_t aOverlayId);
 
   void RecreateDirectManipulationIfNeeded();
   void ResizeDirectManipulationViewport();
@@ -744,11 +744,12 @@ class nsWindow final : public nsWindowBase {
 
   ScreenPoint mLastPanGestureFocus;
 
-  // When true, used to indicate an async call to RequestFxrOutput to the GPU
-  // process after the Compositor is created
-  bool mRequestFxrOutputPending;
-
   mozilla::UniquePtr<mozilla::widget::DirectManipulationOwner> mDmOwner;
+  
+  // When >0, used to indicate an async call to RequestFxrOutput to the GPU
+  // process after the Compositor is created, and that this window is output
+  // to the OpenVR overlay of the specified ID
+  uint64_t mFxrOverlayId;
 };
 
 #endif  // Window_h__

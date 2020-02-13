@@ -565,10 +565,10 @@ mozilla::ipc::IPCResult CompositorBridgeParent::RecvPause() {
   return IPC_OK();
 }
 
-mozilla::ipc::IPCResult CompositorBridgeParent::RecvRequestFxrOutput() {
+mozilla::ipc::IPCResult CompositorBridgeParent::RecvRequestFxrOutput(uint64_t aOverlayId) {
 #ifdef XP_WIN
   // Continue forwarding the request to the Widget + SwapChain
-  mWidget->AsWindows()->RequestFxrOutput();
+  mWidget->AsWindows()->RequestFxrOutput(aOverlayId);
 #endif
 
   return IPC_OK();
