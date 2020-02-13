@@ -658,7 +658,7 @@ nsWindow::nsWindow(bool aIsChildWindow)
   mSizeConstraintsScale = GetDefaultScale().scale;
   mMaxTextureSize = -1;  // Will be calculated when layer manager is created.
 
-  mRequestFxrOutputPending = false;
+  mFxrOverlayId = 0;
 
   sInstanceCount++;
 }
