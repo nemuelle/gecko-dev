@@ -2116,7 +2116,7 @@ class nsIWidget : public nsISupports {
       const nsTArray<mozilla::FontRange>& aFontRangeArray,
       const bool aIsVertical, const LayoutDeviceIntPoint& aPoint) {}
 
-  virtual void RequestFxrOutput() {
+  virtual void RequestFxrOutput(uint64_t aOverlayId) {
     MOZ_ASSERT(false, "This function should only execute in Windows");
   }
 
