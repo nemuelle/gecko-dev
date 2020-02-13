@@ -7,74 +7,24 @@
 #include "mozilla/Assertions.h"
 #include "moz_external_vr.h"
 #include "VRShMem.h"
+#include "openvr.h"
 
 // TryInitialize is responsible for associating this output handler with the
-// calling window's swapchain for subsequent updates. This also creates a
-// texture that can be shared across processes and updates VRShMem with the
-// shared texture handle.
+// calling window's swapchain for subsequent updates.
 // See nsFxrCommandLineHandler::Handle for more information about the
 // bootstrap process.
 bool FxROutputHandler::TryInitialize(IDXGISwapChain* aSwapChain,
                                      ID3D11Device* aDevice) {
   if (mSwapChain == nullptr) {
-    RefPtr<ID3D11Texture2D> texOrig = nullptr;
-    HRESULT hr =
-        aSwapChain->GetBuffer(0, IID_ID3D11Texture2D, getter_AddRefs(texOrig));
-    if (hr != S_OK) {
-      return false;
-    }
-
-    // Create shareable texture, which will be copied to
-    D3D11_TEXTURE2D_DESC descOrig = {0};
-    texOrig->GetDesc(&descOrig);
-    descOrig.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
-    hr = aDevice->CreateTexture2D(&descOrig, nullptr,
-                                  mTexCopy.StartAssignment());
-    if (hr != S_OK) {
-      return false;
-    }
-
-    // Now, share the texture to a handle that can be marshaled to another
-    // process
-    HANDLE hCopy = nullptr;
-    RefPtr<IDXGIResource> texResource;
-    hr = mTexCopy->QueryInterface(IID_IDXGIResource,
-                                  getter_AddRefs(texResource));
-    if (hr != S_OK) {
-      return false;
-    }
-
-    hr = texResource->GetSharedHandle(&hCopy);
-    if (hr != S_OK) {
-      return false;
-    }
-
-    // The texture is successfully created and shared, so cache a
-    // pointer to the swapchain to indicate this success.
-    mSwapChain = aSwapChain;
-
-    // Finally, marshal the shared texture handle via VRShMem
-    mozilla::gfx::VRShMem shmem(nullptr, true /*aRequiresMutex*/);
-    if (shmem.JoinShMem()) {
-      mozilla::gfx::VRWindowState windowState = {0};
-      shmem.PullWindowState(windowState);
-
-      // The CLH should have populated hwndFx first
-      MOZ_ASSERT(windowState.hwndFx != 0);
-      MOZ_ASSERT(windowState.textureFx == nullptr);
-
-      windowState.textureFx = (HANDLE)hCopy;
-
-      shmem.PushWindowState(windowState);
-      shmem.LeaveShMem();
-
-      // Notify the waiting host process that the data is now available
-      HANDLE hSignal = ::OpenEventA(EVENT_ALL_ACCESS,       // dwDesiredAccess
-                                    FALSE,                  // bInheritHandle
-                                    windowState.signalName  // lpName
-      );
-      ::SetEvent(hSignal);
-      ::CloseHandle(hSignal);
+    vr::EVRInitError eError = vr::VRInitError_None;
+    if (m_pHMD == nullptr) {
+      m_pHMD = vr::VR_Init(&eError, vr::VRApplication_Overlay);
+      if (eError == vr::VRInitError_None)
+      {
+        // The texture is successfully created and shared, so cache a
+        // pointer to the swapchain to indicate this success.
+        mSwapChain = aSwapChain;
+      }
     }
   } else {
     MOZ_ASSERT(aSwapChain == mSwapChain);
@@ -90,7 +40,16 @@ void FxROutputHandler::UpdateOutput(ID3D11DeviceContext* aCtx) {
   ID3D11Texture2D* texOrig = nullptr;
   HRESULT hr = mSwapChain->GetBuffer(0, IID_PPV_ARGS(&texOrig));
   if (hr == S_OK) {
-    aCtx->CopyResource(mTexCopy, texOrig);
+    
+    vr::Texture_t overlayTextureDX11 = {
+      texOrig,
+      vr::TextureType_DirectX,
+      vr::ColorSpace_Gamma
+    };
+    
+    vr::VROverlayError error = vr::VROverlay()->SetOverlayTexture(this->mOverlayId, &overlayTextureDX11);
+    MOZ_ASSERT(error == vr::VROverlayError_None);
+
     texOrig->Release();
   }
 }

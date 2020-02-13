@@ -33,6 +33,7 @@ NS_IMPL_ISUPPORTS(nsFxrCommandLineHandler, nsICommandLineHandler)
 
 vr::VROverlayHandle_t CreateOpenVROverlay();
 
+///////////////////// needs to be updated ////////////////////////////
 // nsFxrCommandLineHandler acts in the middle of bootstrapping Firefox
 // Reality with desktop Firefox. Details of the processes involved are
 // described below:
@@ -102,6 +103,13 @@ nsFxrCommandLineHandler::Handle(nsICommandLine* aCmdLine) {
         // shared with the host. Also, this is set here per-window because
         // changing the related pref would impact all browser window instances.
         newWindowOuter->ForceFullScreenInWidget();
+
+
+        // Associate this new window with this new OpenVR overlay for output
+        // rendering
+        nsCOMPtr<nsIWidget> newWidget =
+          mozilla::widget::WidgetUtils::DOMWindowToWidget(newWindowOuter);
+        newWidget->RequestFxrOutput(FxRWindowManager::GetInstance()->GetOverlayId());
       }
       else {
         MOZ_ASSERT(false, "Failed to create Overlay for FxR");
