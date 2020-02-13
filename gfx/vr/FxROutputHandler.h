@@ -10,6 +10,11 @@ struct IDXGISwapChain;
 struct ID3D11DeviceContext;
 struct ID3D11Device;
 
+namespace vr
+{
+  class IVRSystem;
+}
+
 #include <windows.h>
 #include <d3d11_1.h>
 
@@ -21,10 +26,13 @@ struct ID3D11Device;
 // only be on the RenderThread.
 class FxROutputHandler final {
  public:
+   FxROutputHandler(uint64_t aOverlayId) : mOverlayId(aOverlayId) {}
+
   bool TryInitialize(IDXGISwapChain* aSwapChain, ID3D11Device* aDevice);
   void UpdateOutput(ID3D11DeviceContext* aCtx);
 
  private:
+   vr::IVRSystem * m_pHMD = nullptr;
+   uint64_t mOverlayId = 0;
   RefPtr<IDXGISwapChain> mSwapChain = nullptr;
-  RefPtr<ID3D11Texture2D> mTexCopy = nullptr;
 };

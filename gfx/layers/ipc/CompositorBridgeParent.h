@@ -270,7 +270,7 @@ class CompositorBridgeParentBase : public PCompositorBridgeParent,
       FrameUniformityData* data) = 0;
   virtual mozilla::ipc::IPCResult RecvWillClose() = 0;
   virtual mozilla::ipc::IPCResult RecvPause() = 0;
-  virtual mozilla::ipc::IPCResult RecvRequestFxrOutput() = 0;
+  virtual mozilla::ipc::IPCResult RecvRequestFxrOutput(uint64_t aOverlayId) = 0;
   virtual mozilla::ipc::IPCResult RecvResume() = 0;
   virtual mozilla::ipc::IPCResult RecvResumeAsync() = 0;
   virtual mozilla::ipc::IPCResult RecvNotifyChildCreated(
@@ -349,7 +349,7 @@ class CompositorBridgeParent final : public CompositorBridgeParentBase,
       FrameUniformityData* aOutData) override;
   mozilla::ipc::IPCResult RecvWillClose() override;
   mozilla::ipc::IPCResult RecvPause() override;
-  mozilla::ipc::IPCResult RecvRequestFxrOutput() override;
+  mozilla::ipc::IPCResult RecvRequestFxrOutput(uint64_t aOverlayId) override;
   mozilla::ipc::IPCResult RecvResume() override;
   mozilla::ipc::IPCResult RecvResumeAsync() override;
   mozilla::ipc::IPCResult RecvNotifyChildCreated(

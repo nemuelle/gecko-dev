@@ -47,6 +47,7 @@ using mozilla::plugins::PluginInstanceParent;
 #include "mozilla/layers/CompositorBridgeChild.h"
 #include "ClientLayerManager.h"
 #include "InProcessWinCompositorWidget.h"
+#include "FxRWindowManager.h"
 
 #include "nsUXThemeData.h"
 #include "nsUXThemeConstants.h"
@@ -440,18 +441,25 @@ bool nsWindow::OnPaint(HDC aDC, uint32_t aNestingLevel) {
 void nsWindow::CreateCompositor() {
   nsWindowBase::CreateCompositor();
 
-  if (mRequestFxrOutputPending) {
-    GetRemoteRenderer()->SendRequestFxrOutput();
+  if (mFxrOverlayId > 0) {
+    // Since rendering of the Overlay will happen in another process, grant
+    // access to the GPU process PID
+    FxRWindowManager::GetInstance()->SetRenderPid(
+      mFxrOverlayId,
+      GetRemoteRenderer()->GetParentPid()
+    );
+    // Forward the overlay ID to the compositor
+    GetRemoteRenderer()->SendRequestFxrOutput(mFxrOverlayId);
   }
 }
 
-void nsWindow::RequestFxrOutput() {
+void nsWindow::RequestFxrOutput(uint64_t aOverlayId) {
   if (GetRemoteRenderer() != nullptr) {
     MOZ_CRASH("RequestFxrOutput should happen before Compositor is created.");
   } else {
     // The compositor isn't ready, so indicate to make the IPC call when
     // it is available.
-    mRequestFxrOutputPending = true;
+    mFxrOverlayId = aOverlayId;
   }
 }
 

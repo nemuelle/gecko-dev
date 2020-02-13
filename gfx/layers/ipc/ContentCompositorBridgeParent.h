@@ -46,7 +46,7 @@ class ContentCompositorBridgeParent final : public CompositorBridgeParentBase {
   }
   mozilla::ipc::IPCResult RecvWillClose() override { return IPC_OK(); }
   mozilla::ipc::IPCResult RecvPause() override { return IPC_OK(); }
-  mozilla::ipc::IPCResult RecvRequestFxrOutput() override {
+  mozilla::ipc::IPCResult RecvRequestFxrOutput(uint64_t aOverlayId) override {
     return IPC_FAIL_NO_REASON(this);
   }
   mozilla::ipc::IPCResult RecvResume() override { return IPC_OK(); }
