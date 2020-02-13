@@ -22,6 +22,8 @@ class FxRWindowManager final {
 
   bool VRinit();
   bool CreateOverlayForWindow();
+  void SetRenderPid(uint64_t aOverlayId, uint32_t aPid);
+  uint64_t GetOverlayId() const;
 
   bool AddWindow(nsPIDOMWindowOuter* aWindow);
   bool IsFxRWindow(uint64_t aOuterWindowID);
