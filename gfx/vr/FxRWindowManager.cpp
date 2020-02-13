@@ -53,6 +53,15 @@ bool FxRWindowManager::AddWindow(nsPIDOMWindowOuter* aWindow) {
   return CreateOverlayForWindow();
 }
 
+void FxRWindowManager::SetRenderPid(uint64_t aOverlayId, uint32_t aPid) {
+  if (aOverlayId != mFxRWindow.m_ulOverlayHandle) {
+    MOZ_CRASH("Unexpected Overlay ID");
+  }
+
+  vr::VROverlayError error = vr::VROverlay()->SetOverlayRenderingPid(mFxRWindow.m_ulOverlayHandle, aPid);
+  MOZ_ASSERT(error == vr::VROverlayError_None);
+}
+
 bool FxRWindowManager::CreateOverlayForWindow() {
   std::string sKey = std::string("Firefox Reality");
   vr::VROverlayError overlayError = vr::VROverlay()->CreateOverlay(
@@ -65,15 +74,15 @@ bool FxRWindowManager::CreateOverlayForWindow() {
     // Start with default width of 1.5m
     overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
       mFxRWindow.m_ulOverlayHandle,
-      1.5f
+      4.0f
     );
 
     if (overlayError == vr::VROverlayError_None) {
       // Set the transform for the overlay position
       vr::HmdMatrix34_t transform = {
         1.0f, 0.0f, 0.0f,  0.0f, // no move in x direction
-        0.0f, 1.0f, 0.0f,  3.0f, // +y to move it up
-        0.0f, 0.0f, 1.0f, -3.0f  // -z to move it forward from the origin
+        0.0f, 1.0f, 0.0f,  2.0f, // +y to move it up
+        0.0f, 0.0f, 1.0f, -2.0f  // -z to move it forward from the origin
       };
       overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
         mFxRWindow.m_ulOverlayHandle,
@@ -82,17 +91,8 @@ bool FxRWindowManager::CreateOverlayForWindow() {
       );
 
       if (overlayError == vr::VROverlayError_None) {
-        // For now, set the overlay to a system image. This will be replaced by
-        // the Window later.
-        overlayError = vr::VROverlay()->SetOverlayFromFile(
-          mFxRWindow.m_ulOverlayHandle,
-          "C:\\Windows\\System32\\SecurityAndMaintenance_Alert.png"
-        );
-
-        if (overlayError == vr::VROverlayError_None) {
-          // Finally, show the prepared overlay
-          overlayError = vr::VROverlay()->ShowOverlay(mFxRWindow.m_ulOverlayHandle);
-        }
+        // Finally, show the prepared overlay
+        overlayError = vr::VROverlay()->ShowOverlay(mFxRWindow.m_ulOverlayHandle);
       }
     }
   }
@@ -108,6 +108,10 @@ bool FxRWindowManager::CreateOverlayForWindow() {
   else {
     return true;
   }
+}
+
+uint64_t FxRWindowManager::GetOverlayId() const {
+  return mFxRWindow.m_ulOverlayHandle;
 }
 
 // Returns true if the window at the provided ID was created for Firefox Reality
