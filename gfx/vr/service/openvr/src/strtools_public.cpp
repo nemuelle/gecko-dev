@@ -156,6 +156,10 @@ void strcpy_safe( char *pchBuffer, size_t unBufferSizeBytes, const char *pchSour
 	pchBuffer[unBufferSizeBytes - 1] = '\0';
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> Update OpenVR to 1.9.16
 // --------------------------------------------------------------------
 // Purpose: converts a string to upper case
 // --------------------------------------------------------------------
