@@ -132,6 +132,10 @@ std::string CVRPathRegistry_Public::GetOpenVRConfigPath()
 //-----------------------------------------------------------------------------
 std::string CVRPathRegistry_Public::GetVRPathRegistryFilename()
 {
+	std::string sOverridePath = GetEnvironmentVariable( "VR_PATHREG_OVERRIDE" );
+	if ( !sOverridePath.empty() )
+		return sOverridePath;
+
 	std::string sPath = GetOpenVRConfigPath();
 	if ( sPath.empty() )
 		return "";
@@ -226,21 +230,28 @@ bool CVRPathRegistry_Public::BLoadFromFile()
 
 	Json::Value root;
 	Json::CharReaderBuilder builder;
-	std::istringstream istream(sRegistryContents);
-	std::string errors;
+	std::istringstream istream( sRegistryContents );
+	std::string sErrors;
 
-	if( !parseFromStream( builder, istream, &root, &errors ) )
-	{
-		VRLog( "Unable to parse %s: %s\n", sRegPath.c_str(), errors.c_str() );
-		return false;
+	__try {
+		if ( !parseFromStream( builder, istream, &root, &sErrors ) )
+		{
+			VRLog( "Unable to parse %s: %s\n", sRegPath.c_str(), sErrors.c_str() );
+			return false;
+		}
+
+		ParseStringListFromJson( &m_vecRuntimePath, root, "runtime" );
+		ParseStringListFromJson( &m_vecConfigPath, root, "config" );
+		ParseStringListFromJson( &m_vecLogPath, root, "log" );
+		if ( root.isMember( "external_drivers" ) && root["external_drivers"].isArray() )
+		{
+			ParseStringListFromJson( &m_vecExternalDrivers, root, "external_drivers" );
+		}
 	}
-
-	ParseStringListFromJson( &m_vecRuntimePath, root, "runtime" );
-	ParseStringListFromJson( &m_vecConfigPath, root, "config" );
-	ParseStringListFromJson( &m_vecLogPath, root, "log" );
-	if (root.isMember( "external_drivers" ) && root[ "external_drivers" ].isArray() )
+	__except ( true )
 	{
-		ParseStringListFromJson( &m_vecExternalDrivers, root, "external_drivers" );
+		VRLog( "Unable to parse %s: %s\n", sRegPath.c_str(), "exception thrown in JSON library" );
+		return false;
 	}
 
 	return true;
@@ -404,7 +415,7 @@ bool CVRPathRegistry_Public::GetPaths( std::string *psRuntimePath, std::string *
 
 	if ( nCountEnvironmentVariables == 3 )
 	{
-		// all three environment variables where set, so we don't need the physical file
+		// all three environment variables were set, so we don't need the physical file
 		return true;
 	}
 

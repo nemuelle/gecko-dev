@@ -1063,7 +1063,7 @@ void OpenVRSession::UpdateControllerPoses(VRSystemState& aState) {
     }
     VRControllerState& controllerState = aState.controllerState[stateIndex];
     vr::InputPoseActionData_t poseData;
-    if (vr::VRInput()->GetPoseActionData(
+    if (vr::VRInput()->GetPoseActionDataRelativeToNow(
             mControllerHand[role].mActionPose.handle,
             vr::TrackingUniverseSeated, 0, &poseData, sizeof(poseData),
             vr::k_ulInvalidInputValueHandle) != vr::VRInputError_None ||
@@ -1253,7 +1253,8 @@ void OpenVRSession::ProcessEvents(mozilla::gfx::VRSystemState& aSystemState) {
       // process to shutdown the VR process, and we need to avoid it.
       // case ::vr::EVREventType::VREvent_ProcessQuit:
       case ::vr::EVREventType::VREvent_QuitAcknowledged:
-      case ::vr::EVREventType::VREvent_QuitAborted_UserPrompt:
+      // Deprecated in 1.8.19
+      //case ::vr::EVREventType::VREvent_QuitAborted_UserPrompt:
         mShouldQuit = true;
         break;
       default:
