@@ -21,6 +21,10 @@ std::string UTF16to8(const wchar_t * in);
 std::wstring UTF8to16(const char * in);
 #define Utf16FromUtf8 UTF8to16
 
+/** Repairs a should-be-UTF-8 string to a for-sure-is-UTF-8 string, plus return boolean if we subbed in '?' somewhere */
+bool RepairUTF8( const char *begin, const char *end, std::string & sOutputUtf8 );
+bool RepairUTF8( const std::string & sInputUtf8, std::string & sOutputUtf8 );
+
 /** safely copy a string into a buffer */
 void strcpy_safe( char *pchBuffer, size_t unBufferSizeBytes, const char *pchSource );
 template< size_t bufferSize >
@@ -59,15 +63,15 @@ inline int strnicmp( const char *pStr1, const char *pStr2, size_t unBufferLen ) 
 #if defined( OSX )
 // behaviors ensure NULL-termination at least as well as _TRUNCATE does, but
 // wcsncpy_s/strncpy_s can non-NULL-terminate, wcslcpy/strlcpy can not.
-// inline errno_t wcsncpy_s(wchar_t *strDest, size_t numberOfElements, const wchar_t *strSource, size_t count)
-// {
-// 	return wcslcpy(strDest, strSource, numberOfElements);
-// }
+//inline errno_t wcsncpy_s(wchar_t *strDest, size_t numberOfElements, const wchar_t *strSource, size_t count)
+//{
+//	return wcslcpy(strDest, strSource, numberOfElements);
+//}
 
-// inline errno_t strncpy_s(char *strDest, size_t numberOfElements, const char *strSource, size_t count)
-// {
-// 	return strlcpy(strDest, strSource, numberOfElements);
-// }
+//inline errno_t strncpy_s(char *strDest, size_t numberOfElements, const char *strSource, size_t count)
+//{
+//	return strlcpy(strDest, strSource, numberOfElements);
+//}
 
 #endif
 
@@ -112,6 +116,13 @@ uint64_t StringToUint64( const std::string & sValue );
 //-----------------------------------------------------------------------------
 void V_URLEncode( char *pchDest, int nDestLen, const char *pchSource, int nSourceLen );
 
+/** Same as V_URLEncode, but without plus for space. */
+void V_URLEncodeNoPlusForSpace( char *pchDest, int nDestLen, const char *pchSource, int nSourceLen );
+
+/** Same as V_URLEncodeNoPlusForSpace, but without escaping / and : */
+void V_URLEncodeFullPath( char *pchDest, int nDestLen, const char *pchSource, int nSourceLen );
+
+
 //-----------------------------------------------------------------------------
 // Purpose: Decodes a string (or binary data) from URL encoding format, see rfc1738 section 2.2.  
 //          This version of the call isn't a strict RFC implementation, but uses + for space as is
@@ -121,6 +132,9 @@ void V_URLEncode( char *pchDest, int nDestLen, const char *pchSource, int nSourc
 //			Dest buffer being the same as the source buffer (decode in-place) is explicitly allowed.
 //-----------------------------------------------------------------------------
 size_t V_URLDecode( char *pchDecodeDest, int nDecodeDestLen, const char *pchEncodedSource, int nEncodedSourceLen );
+
+/** Same as V_URLDecode, but without plus for space. */
+size_t V_URLDecodeNoPlusForSpace( char *pchDecodeDest, int nDecodeDestLen, const char *pchEncodedSource, int nEncodedSourceLen );
 
 //-----------------------------------------------------------------------------
 // Purpose: strip extension from a path
