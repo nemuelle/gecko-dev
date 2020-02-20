@@ -212,6 +212,7 @@
 #include "mozilla/Telemetry.h"
 #include "mozilla/plugins/PluginProcessParent.h"
 #include "mozilla/webrender/WebRenderAPI.h"
+#include "FxRWindowManager.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -965,6 +966,13 @@ void nsWindow::Destroy() {
     mWindowHook.Notify(mWnd, WM_DESTROY, 0, 0, msgResult);
     OnDestroy();
   }
+
+  if (mFxrOverlayId > 0) {
+    FxRWindowManager::GetInstance()->RemoveWindow(mFxrOverlayId);
+
+    mFxrOverlayId = 0;
+  }
+  
 }
 
 /**************************************************************
