@@ -5,6 +5,8 @@
 
 #pragma once
 #include <cstdint>
+#include "mozilla/Atomics.h"
+#include "windows.h"
 #include "openvr.h"
 
 class nsPIDOMWindowOuter;
@@ -23,18 +25,25 @@ class FxRWindowManager final {
   bool VRinit();
   bool CreateOverlayForWindow();
   void SetRenderPid(uint64_t aOverlayId, uint32_t aPid);
-  uint64_t GetOverlayId() const;
+  uint64_t GetOverlayId() const;  
 
   bool AddWindow(nsPIDOMWindowOuter* aWindow);
+  void RemoveWindow(uint64_t aOverlayId);
+
   bool IsFxRWindow(uint64_t aOuterWindowID);
   bool IsFxRWindow(const nsWindow* aWindow) const;
   uint64_t GetWindowID() const;
 
  private:
+  static DWORD OverlayInputPump(_In_ LPVOID lpParameter);
+
   FxRWindowManager();
 
-  vr::IVRSystem * m_pHMD;
-  int32_t m_dxgiAdapterIndex;
+  vr::IVRSystem * mVrApp;
+  int32_t mDxgiAdapterIndex;
+
+  mozilla::Atomic<bool> mIsOverlayPumpActive;
+  HANDLE mOverlayPumpThread;
 
   // Only a single window is supported for tracking. Support for multiple
   // windows will require a data structure to collect windows as they are
