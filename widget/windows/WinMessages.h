@@ -48,6 +48,10 @@
 #define MOZ_WM_DEADCHAR (WM_APP + 0x031E)
 #define MOZ_WM_SYSDEADCHAR (WM_APP + 0x031F)
 
+// Works with FxRWindowManager to ensure that UI events polled from the OpenVR
+// Input Thread are processed on the Firefox UI thread
+#define MOZ_WM_OPENVR_EVENT (WM_APP + 0x0320)
+
 // XXX Should rename them to MOZ_WM_* and use safer values!
 // Messages for fullscreen transition window
 #define WM_FULLSCREEN_TRANSITION_BEFORE (WM_USER + 0)
