@@ -6096,6 +6096,12 @@ bool nsWindow::ProcessMessage(UINT msg, WPARAM& wParam, LPARAM& lParam,
       }
     } break;
 
+    case MOZ_WM_OPENVR_EVENT: {
+      FxRWindowManager::GetInstance()->ProcessOverlayEvents();
+      DispatchPendingEvents();
+      break;
+    }
+
     default: {
       if (msg == nsAppShell::GetTaskbarButtonCreatedMessage()) {
         SetHasTaskbarIconBeenCreated();

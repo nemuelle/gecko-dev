@@ -5,15 +5,19 @@
 
 #pragma once
 #include <cstdint>
+#include <vector>
 #include "mozilla/Atomics.h"
 #include "windows.h"
 #include "openvr.h"
 
 class nsPIDOMWindowOuter;
 class nsWindow;
+class nsIWidget;
 namespace vr {
   class IVRSystem;
 };
+
+typedef std::vector<vr::VREvent_t> VREventVector;
 
 // FxRWindowManager is a singleton that is responsible for tracking all of
 // the top-level windows created for Firefox Reality on Desktop. Only a
@@ -21,6 +25,7 @@ namespace vr {
 class FxRWindowManager final {
  public:
   static FxRWindowManager* GetInstance();
+  ~FxRWindowManager();
 
   bool VRinit();
   bool CreateOverlayForWindow();
@@ -34,8 +39,11 @@ class FxRWindowManager final {
   bool IsFxRWindow(const nsWindow* aWindow) const;
   uint64_t GetWindowID() const;
 
+  void ProcessOverlayEvents();
  private:
+  vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
   static DWORD OverlayInputPump(_In_ LPVOID lpParameter);
+  void CollectOverlayEvents();
 
   FxRWindowManager();
 
@@ -49,9 +57,23 @@ class FxRWindowManager final {
   // windows will require a data structure to collect windows as they are
   // created.
   struct FxRWindow{
+    // Note: mWidget takes a full reference
+    nsIWidget* mWidget;
     nsPIDOMWindowOuter* mWindow;
-    vr::VROverlayHandle_t m_ulOverlayHandle;
-    vr::VROverlayHandle_t m_ulOverlayThumbnailHandle;
+    vr::VROverlayHandle_t mOverlayHandle;
+    vr::VROverlayHandle_t mOverlayThumbnailHandle;
+    HWND mHwndWidget;
+
+    // Works with Collect/ProcessOverlayEvents to transfer OpenVR input events
+    // from the background thread to the main thread. Consider using a queue?
+    VREventVector mEventsVector;
+    CRITICAL_SECTION mEventsCritSec;
+
+    // OpenVR scroll event doesn't provide the position of the controller on the
+    // overlay, so keep track of the last-known position to use with the scroll
+    // event
+    POINT mLastMousePt;
+    RECT mOverlaySizeRec;
   } mFxRWindow;
   //nsPIDOMWindowOuter* mWindow;
 };
