@@ -19,11 +19,28 @@ bool FxROutputHandler::TryInitialize(IDXGISwapChain* aSwapChain,
     vr::EVRInitError eError = vr::VRInitError_None;
     if (m_pHMD == nullptr) {
       m_pHMD = vr::VR_Init(&eError, vr::VRApplication_Overlay);
-      if (eError == vr::VRInitError_None)
-      {
+      if (eError == vr::VRInitError_None) {
         // The texture is successfully created and shared, so cache a
         // pointer to the swapchain to indicate this success.
         mSwapChain = aSwapChain;
+
+        ID3D11Texture2D* texOrig = nullptr;
+        HRESULT hr = mSwapChain->GetBuffer(0, IID_PPV_ARGS(&texOrig));
+        if (hr == S_OK) {
+          D3D11_TEXTURE2D_DESC desc;
+          texOrig->GetDesc(&desc);
+
+          // In order to properly process mouse events from the controller, set
+          // the mouse scale based on the size of the window texture
+          vr::HmdVector2_t vecWindowSize = { (float)desc.Width,
+                                             (float)desc.Height };
+
+          vr::EVROverlayError error = vr::VROverlay()->SetOverlayMouseScale(
+            mOverlayId, &vecWindowSize);
+          MOZ_ASSERT(error == vr::VROverlayError_None);
+
+          texOrig->Release();
+        }
       }
     }
   } else {
@@ -33,7 +50,7 @@ bool FxROutputHandler::TryInitialize(IDXGISwapChain* aSwapChain,
   return mSwapChain != nullptr && aSwapChain == mSwapChain;
 }
 
-// Update the contents of the shared texture.
+// Update the OpenVR Overlay's rendering from the swapchain
 void FxROutputHandler::UpdateOutput(ID3D11DeviceContext* aCtx) {
   MOZ_ASSERT(mSwapChain != nullptr);
 
@@ -47,7 +64,10 @@ void FxROutputHandler::UpdateOutput(ID3D11DeviceContext* aCtx) {
       vr::ColorSpace_Gamma
     };
     
-    vr::VROverlayError error = vr::VROverlay()->SetOverlayTexture(this->mOverlayId, &overlayTextureDX11);
+    vr::VROverlayError error = vr::VROverlay()->SetOverlayTexture(
+      mOverlayId,
+      &overlayTextureDX11
+    );
     MOZ_ASSERT(error == vr::VROverlayError_None);
 
     texOrig->Release();
