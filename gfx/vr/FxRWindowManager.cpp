@@ -11,6 +11,8 @@
 
 #include "nsPIDOMWindow.h"
 #include "nsWindow.h"
+#include "nsIDOMWindowUtils.h"
+#include "WinMouseScrollHandler.h"
 
 static mozilla::StaticAutoPtr<FxRWindowManager> sFxrWinMgrInstance;
 // To use this for console output, add --MOZ_LOG=FxRWindowManager:5 to cmd line
@@ -177,16 +179,24 @@ bool FxRWindowManager::CreateOverlayForWindow() {
   }
 }
 
-vr::VROverlayError FxRWindowManager::SetupOverlayInput(vr::VROverlayHandle_t overlayId) {  
-  mIsOverlayPumpActive = true;
-  DWORD dwTid = 0;
-  mOverlayPumpThread = ::CreateThread(
-    nullptr, 0,
-    FxRWindowManager::OverlayInputPump,
-    this, 0, &dwTid
-  );  
+vr::VROverlayError FxRWindowManager::SetupOverlayInput(vr::VROverlayHandle_t overlayId) {
+  // Enable scrolling for this overlay
+  vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayFlag(
+    overlayId,
+    vr::VROverlayFlags_SendVRDiscreteScrollEvents,
+    true
+  );
 
-  return vr::VROverlayError_None;
+  if (overlayError == vr::VROverlayError_None) {
+    mIsOverlayPumpActive = true;
+    DWORD dwTid = 0;
+    mOverlayPumpThread = ::CreateThread(
+      nullptr, 0,
+      FxRWindowManager::OverlayInputPump,
+      this, 0, &dwTid
+    );
+  }
+  return overlayError;
 }
 
 
@@ -286,20 +296,20 @@ void FxRWindowManager::ProcessOverlayEvents() {
     ));
 
   VREventVector rgEvents;
+  // See note above SynthesizeNativeMouseScrollEvent for reasoning
+  bool hasScrolled = false;
+  
+  // Acquire CS
+  ::EnterCriticalSection(&mFxRWindow.mEventsCritSec);
 
-  {
-    // Acquire CS
-    ::EnterCriticalSection(&mFxRWindow.mEventsCritSec);
+  // Copy elements to stack vector to minimize CritSec acquisition
+  mFxRWindow.mEventsVector.swap(rgEvents);
 
-    // Copy elements to stack vector to minimize CritSec acquisition
-    mFxRWindow.mEventsVector.swap(rgEvents);
+  // Clear vector
+  mFxRWindow.mEventsVector.clear();
 
-    // Clear vector
-    mFxRWindow.mEventsVector.clear();
-
-    ::LeaveCriticalSection(&mFxRWindow.mEventsCritSec);
-  }
-
+  ::LeaveCriticalSection(&mFxRWindow.mEventsCritSec);
+  
   // Assert size > 0
   MOZ_ASSERT(!rgEvents.empty());
 
@@ -342,6 +352,37 @@ void FxRWindowManager::ProcessOverlayEvents() {
 
         break;
       }
+
+    case vr::VREvent_ScrollDiscrete: {
+      MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+        "scroll", nullptr
+        ));
+      vr::VREvent_Scroll_t data = iter->data.scroll;
+
+      if (!hasScrolled) {
+        SHORT scrollDelta = WHEEL_DELTA * (short)data.ydelta;
+        
+        // Note: two important things about Synthesize below
+        // - It uses SendMessage, not PostMessage, so it's a synchronous call
+        // to scroll
+        // - Because it's synchronous and because the synthesizer doesn't
+        // support multiple synthesized events (i.e., needs a call to Finish),
+        // only one can be processed at a time in this message loop
+        mozilla::LayoutDeviceIntPoint pt;
+        pt.x = mFxRWindow.mLastMousePt.x;
+        pt.y = mFxRWindow.mLastMousePt.y;
+
+        mozilla::widget::MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
+          window, pt, WM_MOUSEWHEEL, scrollDelta,
+          0,  // aModifierFlags
+          nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET
+        );
+
+        hasScrolled = true;
+      }
+
+      break;
+    }
     }
   }
 
