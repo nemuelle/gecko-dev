@@ -542,6 +542,11 @@ interface nsIDOMWindowUtils : nsISupports {
   const unsigned long MOUSESCROLL_SCROLL_LINES = 0x00000002;
 
   /**
+   * Dispatch the mouse scroll event to the widget that sent it
+   */
+  const unsigned long MOUSESCROLL_SEND_TO_WIDGET = 0x00000004;
+
+  /**
    * The platform specific values of aAdditionalFlags.  Must be over 0x00010000.
    */
 
