@@ -236,12 +236,21 @@ nsresult MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
     uint32_t aAdditionalFlags) {
   bool useFocusedWindow = !(
       aAdditionalFlags & nsIDOMWindowUtils::MOUSESCROLL_PREFER_WIDGET_AT_POINT);
+  bool useWidget =
+    (aAdditionalFlags & nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET);
 
   POINT pt;
   pt.x = aPoint.x;
   pt.y = aPoint.y;
 
-  HWND target = useFocusedWindow ? ::WindowFromPoint(pt) : ::GetFocus();
+  HWND target;
+  if (!useWidget) {
+    target = useFocusedWindow ? ::WindowFromPoint(pt) : ::GetFocus();
+  }
+  else {
+    target = (HWND)aWidget->GetNativeData(NS_NATIVE_WINDOW);
+  }
+
   NS_ENSURE_TRUE(target, NS_ERROR_FAILURE);
 
   WPARAM wParam = 0;
@@ -298,8 +307,11 @@ nsresult MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
   POINTS pts;
   pts.x = static_cast<SHORT>(pt.x);
   pts.y = static_cast<SHORT>(pt.y);
-  return sInstance->mSynthesizingEvent->Synthesize(pts, target, aNativeMessage,
-                                                   wParam, lParam, kbdState);
+  
+  return sInstance->mSynthesizingEvent->Synthesize(
+    pts, target, aNativeMessage,
+    wParam, lParam, kbdState, aAdditionalFlags
+  );
 }
 
 /* static */
@@ -385,7 +397,14 @@ void MouseScrollHandler::ProcessNativeMouseWheelMessage(nsWindowBase* aWidget,
            aWParam, aLParam, point.x, point.y));
   MaybeLogKeyState();
 
-  HWND underCursorWnd = ::WindowFromPoint(point);
+  HWND underCursorWnd;
+  if (SynthesizingEvent::IsSynthesizing() && mSynthesizingEvent->ShouldSendToWidget()) {
+    underCursorWnd = (HWND)aWidget->GetNativeData(NS_NATIVE_WINDOW);
+  }
+  else {
+    underCursorWnd = ::WindowFromPoint(point);
+  }
+  
   if (!underCursorWnd) {
     MOZ_LOG(gMouseScrollLog, LogLevel::Info,
             ("MouseScroll::ProcessNativeMouseWheelMessage: "
@@ -1583,9 +1602,13 @@ bool MouseScrollHandler::SynthesizingEvent::IsSynthesizing() {
              NOT_SYNTHESIZING;
 }
 
+bool MouseScrollHandler::SynthesizingEvent::ShouldSendToWidget() const {
+  return mAdditionalFlags == nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET;
+}
+
 nsresult MouseScrollHandler::SynthesizingEvent::Synthesize(
     const POINTS& aCursorPoint, HWND aWnd, UINT aMessage, WPARAM aWParam,
-    LPARAM aLParam, const BYTE (&aKeyStates)[256]) {
+    LPARAM aLParam, const BYTE (&aKeyStates)[256], uint32_t aAdditionalFlags) {
   MOZ_LOG(
       gMouseScrollLog, LogLevel::Info,
       ("MouseScrollHandler::SynthesizingEvent::Synthesize(): aCursorPoint: { "
@@ -1609,6 +1632,7 @@ nsresult MouseScrollHandler::SynthesizingEvent::Synthesize(
   mMessage = aMessage;
   mWParam = aWParam;
   mLParam = aLParam;
+  mAdditionalFlags = aAdditionalFlags;
 
   memcpy(mKeyState, aKeyStates, sizeof(mKeyState));
   ::SetKeyboardState(mKeyState);
