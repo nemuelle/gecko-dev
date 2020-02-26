@@ -381,7 +381,7 @@ class MouseScrollHandler {
 
     nsresult Synthesize(const POINTS& aCursorPoint, HWND aWnd, UINT aMessage,
                         WPARAM aWParam, LPARAM aLParam,
-                        const BYTE (&aKeyStates)[256]);
+                        const BYTE (&aKeyStates)[256], uint32_t aAdditionalFlags);
 
     void NativeMessageReceived(nsWindowBase* aWidget, UINT aMessage,
                                WPARAM aWParam, LPARAM aLParam);
@@ -391,6 +391,8 @@ class MouseScrollHandler {
 
     const POINTS& GetCursorPoint() const { return mCursorPoint; }
 
+    bool ShouldSendToWidget() const;
+
    private:
     POINTS mCursorPoint;
     HWND mWnd;
@@ -399,6 +401,7 @@ class MouseScrollHandler {
     LPARAM mLParam;
     BYTE mKeyState[256];
     BYTE mOriginalKeyState[256];
+    uint32_t mAdditionalFlags;
 
     enum Status {
       NOT_SYNTHESIZING,
