@@ -741,14 +741,12 @@ void IMEHandler::MaybeShowOnScreenKeyboard(nsWindow* aWindow,
   if (aInputContext.mHTMLInputInputmode.EqualsLiteral("none")) {
     return;
   }
-#ifdef NIGHTLY_BUILD
-  if (FxRWindowManager::GetInstance()->IsFxRWindow(sFocusedWindow)) {
-    mozilla::gfx::VRShMem shmem(nullptr, true /*aRequiresMutex*/);
-    shmem.SendIMEState(FxRWindowManager::GetInstance()->GetWindowID(),
-                       mozilla::gfx::VRFxEventState::FOCUS);
+
+  if (FxRWindowManager::GetInstance()->IsFxRWindow(aWindow)) {
+    FxRWindowManager::GetInstance()->ShowVirtualKeyboard(aWindow->GetOverlayId());
     return;
   }
-#endif  // NIGHTLY_BUILD
+
   if (sPluginHasFocus || !IsWin8OrLater() ||
       !Preferences::GetBool(kOskEnabled, true) || GetOnScreenKeyboardWindow() ||
       !IMEHandler::NeedOnScreenKeyboard()) {
@@ -773,11 +771,9 @@ void IMEHandler::MaybeShowOnScreenKeyboard(nsWindow* aWindow,
 void IMEHandler::MaybeDismissOnScreenKeyboard(nsWindow* aWindow, Sync aSync) {
 #ifdef NIGHTLY_BUILD
   if (FxRWindowManager::GetInstance()->IsFxRWindow(aWindow)) {
-    mozilla::gfx::VRShMem shmem(nullptr, true /*aRequiresMutex*/);
-    shmem.SendIMEState(FxRWindowManager::GetInstance()->GetWindowID(),
-                       mozilla::gfx::VRFxEventState::BLUR);
+    FxRWindowManager::GetInstance()->HideVirtualKeyboard();
   }
-#endif  // NIGHTLY_BUILD
+
   if (sPluginHasFocus || !IsWin8OrLater()) {
     return;
   }

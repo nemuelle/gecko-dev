@@ -353,40 +353,119 @@ void FxRWindowManager::ProcessOverlayEvents() {
         break;
       }
 
-    case vr::VREvent_ScrollDiscrete: {
-      MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
-        "scroll", nullptr
-        ));
-      vr::VREvent_Scroll_t data = iter->data.scroll;
+      case vr::VREvent_ScrollDiscrete: {
+        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+          "scroll", nullptr
+          ));
+        vr::VREvent_Scroll_t data = iter->data.scroll;
 
-      if (!hasScrolled) {
-        SHORT scrollDelta = WHEEL_DELTA * (short)data.ydelta;
+        if (!hasScrolled) {
+          SHORT scrollDelta = WHEEL_DELTA * (short)data.ydelta;
         
-        // Note: two important things about Synthesize below
-        // - It uses SendMessage, not PostMessage, so it's a synchronous call
-        // to scroll
-        // - Because it's synchronous and because the synthesizer doesn't
-        // support multiple synthesized events (i.e., needs a call to Finish),
-        // only one can be processed at a time in this message loop
-        mozilla::LayoutDeviceIntPoint pt;
-        pt.x = mFxRWindow.mLastMousePt.x;
-        pt.y = mFxRWindow.mLastMousePt.y;
+          // Note: two important things about Synthesize below
+          // - It uses SendMessage, not PostMessage, so it's a synchronous call
+          // to scroll
+          // - Because it's synchronous and because the synthesizer doesn't
+          // support multiple synthesized events (i.e., needs a call to Finish),
+          // only one can be processed at a time in this message loop
+          mozilla::LayoutDeviceIntPoint pt;
+          pt.x = mFxRWindow.mLastMousePt.x;
+          pt.y = mFxRWindow.mLastMousePt.y;
 
-        mozilla::widget::MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
-          window, pt, WM_MOUSEWHEEL, scrollDelta,
-          0,  // aModifierFlags
-          nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET
-        );
+          mozilla::widget::MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
+            window, pt, WM_MOUSEWHEEL, scrollDelta,
+            0,  // aModifierFlags
+            nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET
+          );
 
-        hasScrolled = true;
+          hasScrolled = true;
+        }
+
+        break;
       }
 
-      break;
-    }
+      case vr::VREvent_KeyboardCharInput: {
+        vr::VREvent_Keyboard_t data = iter->data.keyboard;
+
+        size_t inputLength = strnlen_s(data.cNewInput, ARRAYSIZE(data.cNewInput));
+        wchar_t msgChar = data.cNewInput[0];
+
+        if (inputLength > 1) {
+          // The event can contain multi-byte UTF8 characters. Convert them to
+          // a single Wide character to send to Gecko
+          wchar_t convertedChar[ARRAYSIZE(data.cNewInput)] = { 0 };
+          int convertedReturn = ::MultiByteToWideChar(
+            CP_UTF8,
+            MB_ERR_INVALID_CHARS,
+            data.cNewInput,
+            inputLength,
+            convertedChar,
+            ARRAYSIZE(convertedChar)
+          );
+
+          MOZ_ASSERT(convertedReturn == 1);
+          msgChar = convertedChar[0];
+        }
+        else {
+          MOZ_ASSERT(inputLength == 1);
+          if (msgChar == L'\n') {
+            // Make new line 
+            msgChar = VK_RETURN;
+          }
+        }
+
+        switch (msgChar) {
+          // These characters need to be mapped to key presses rather than char
+          // so that they map to actions instead.
+          case VK_BACK:
+          case VK_TAB:
+          case VK_RETURN:
+          case VK_ESCAPE: {
+            MSG nativeMsgDown = mozilla::widget::WinUtils::InitMSG(
+              WM_KEYDOWN, msgChar, 0, mFxRWindow.mHwndWidget);
+            window->ProcessKeyDownMessage(nativeMsgDown, nullptr);
+
+            MSG nativeMsgUp = mozilla::widget::WinUtils::InitMSG(
+              WM_KEYUP, msgChar, 0, mFxRWindow.mHwndWidget);
+            window->ProcessKeyUpMessage(nativeMsgUp, nullptr);
+
+            break;
+          }
+
+          default: {
+            MSG nativeMsg = mozilla::widget::WinUtils::InitMSG(
+              WM_CHAR, msgChar, 0, mFxRWindow.mHwndWidget);
+
+            window->ProcessCharMessage(nativeMsg, nullptr);
+            break;
+          }
+        }
+      }
     }
   }
 
   window->DispatchPendingEvents();
+}
+
+void FxRWindowManager::ShowVirtualKeyboard(uint64_t aOverlayId) {
+  // Note: bUseMinimalMode set to true so that each char arrives as an event.
+  vr::VROverlayError overlayError = vr::VROverlay()->ShowKeyboardForOverlay(
+    aOverlayId,
+    vr::k_EGamepadTextInputModeNormal,
+    vr::k_EGamepadTextInputLineModeSingleLine,
+    "FxR",  // pchDescription,
+    100,    // unCharMax,
+    "",     // pchExistingText,
+    true,   // bUseMinimalMode
+    0       // uint64_t uUserValue
+  );
+
+  MOZ_ASSERT(overlayError == vr::VROverlayError_None ||
+             overlayError == vr::VROverlayError_KeyboardAlreadyInUse);
+}
+
+void FxRWindowManager::HideVirtualKeyboard() {
+  vr::VROverlay()->HideKeyboard();
 }
 
 uint64_t FxRWindowManager::GetOverlayId() const {
