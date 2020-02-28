@@ -249,6 +249,11 @@ class nsWindow final : public nsWindowBase {
   bool DispatchPluginEvent(UINT aMessage, WPARAM aWParam, LPARAM aLParam,
                            bool aDispatchPendingEvents);
 
+  LRESULT ProcessCharMessage(const MSG& aMsg, bool* aEventDispatched);
+  LRESULT ProcessKeyUpMessage(const MSG& aMsg, bool* aEventDispatched);
+  LRESULT ProcessKeyDownMessage(const MSG& aMsg, bool* aEventDispatched);
+
+
   void SuppressBlurEvents(bool aSuppress);  // Called from nsFilePicker
   bool BlurEventsSuppressed();
 #ifdef ACCESSIBILITY
@@ -338,6 +343,8 @@ class nsWindow final : public nsWindowBase {
   bool IsTouchWindow() const { return mTouchWindow; }
   bool SynchronouslyRepaintOnResize() override;
 
+  uint64_t GetOverlayId() const { return mFxrOverlayId; }
+
  protected:
   virtual ~nsWindow();
 
@@ -414,9 +421,6 @@ class nsWindow final : public nsWindowBase {
   bool ExternalHandlerProcessMessage(UINT aMessage, WPARAM& aWParam,
                                      LPARAM& aLParam, MSGResult& aResult);
   bool ProcessMessageForPlugin(MSG aMsg, MSGResult& aResult);
-  LRESULT ProcessCharMessage(const MSG& aMsg, bool* aEventDispatched);
-  LRESULT ProcessKeyUpMessage(const MSG& aMsg, bool* aEventDispatched);
-  LRESULT ProcessKeyDownMessage(const MSG& aMsg, bool* aEventDispatched);
   static bool EventIsInsideWindow(nsWindow* aWindow);
   // Convert nsEventStatus value to a windows boolean
   static bool ConvertStatus(nsEventStatus aStatus);
