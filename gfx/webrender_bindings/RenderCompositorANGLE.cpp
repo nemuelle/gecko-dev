@@ -604,6 +604,16 @@ bool RenderCompositorANGLE::ResizeBufferIfNeeded() {
     return true;
   }
 
+  // When an existing window minimizes, its normalized client size is 1x1,
+  // which results in output not updating for FxR. In this case, do not resize
+  // the buffers to continue update even when minimized.
+  if (mBufferSize.isSome() && mBufferSize.ref() != size
+    && mWidget->AsWindows() != nullptr && mWidget->AsWindows()->HasFxrOutputHandler()
+    && size.width == 1 && size.height == 1) {
+    MOZ_ASSERT(mEGLSurface);
+    return true;
+  }
+
   // Release EGLSurface of back buffer before calling ResizeBuffers().
   DestroyEGLSurface();
 
