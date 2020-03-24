@@ -375,7 +375,8 @@ void FxRWindowManager::ProcessOverlayEvents() {
           mozilla::widget::MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
             window, pt, WM_MOUSEWHEEL, scrollDelta,
             0,  // aModifierFlags
-            nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET
+            nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET | 
+            nsIDOMWindowUtils::MOUSESCROLL_POINT_IN_WINDOW_COORD
           );
 
           hasScrolled = true;
