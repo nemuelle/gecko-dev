@@ -69,7 +69,7 @@ class MouseScrollHandler {
    * GetCurrentMessagePos() will be used.
    */
   static void InitEvent(nsWindowBase* aWidget, WidgetGUIEvent& aEvent,
-                        LPARAM* aPoint);
+                        LPARAM* aPoint, bool aIsPointInWindowCoords);
 
   /**
    * GetModifierKeyState() returns current modifier key state.
@@ -392,6 +392,7 @@ class MouseScrollHandler {
     const POINTS& GetCursorPoint() const { return mCursorPoint; }
 
     bool ShouldSendToWidget() const;
+    bool IsPointInWindowCoordinates() const;
 
    private:
     POINTS mCursorPoint;

@@ -316,7 +316,10 @@ nsresult MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
 
 /* static */
 void MouseScrollHandler::InitEvent(nsWindowBase* aWidget,
-                                   WidgetGUIEvent& aEvent, LPARAM* aPoint) {
+                                   WidgetGUIEvent& aEvent,
+                                   LPARAM* aPoint,
+                                   bool aIsPointInWindowCoords
+  ) {
   NS_ENSURE_TRUE_VOID(aWidget);
 
   // If a point is provided, use it; otherwise, get current message point or
@@ -332,7 +335,9 @@ void MouseScrollHandler::InitEvent(nsWindowBase* aWidget,
   // point from screen coordinates.
   POINT pointOnWindow;
   POINTSTOPOINT(pointOnWindow, pointOnScreen);
-  ::ScreenToClient(aWidget->GetWindowHandle(), &pointOnWindow);
+  if (!aIsPointInWindowCoords) {
+    ::ScreenToClient(aWidget->GetWindowHandle(), &pointOnWindow);
+  }
 
   LayoutDeviceIntPoint point;
   point.x = pointOnWindow.x;
@@ -713,7 +718,7 @@ void MouseScrollHandler::HandleScrollMessageAsMouseWheelMessage(
   // is received. However, this data is not available with the original
   // message, which is why nullptr is passed in. We need to know the actual
   // mouse cursor position when the original message was received.
-  InitEvent(aWidget, wheelEvent, nullptr);
+  InitEvent(aWidget, wheelEvent, nullptr, false);
 
   MOZ_LOG(
       gMouseScrollLog, LogLevel::Info,
@@ -823,9 +828,12 @@ bool MouseScrollHandler::LastEventInfo::InitWheelEvent(
   MOZ_ASSERT(aWheelEvent.mMessage == eWheel);
 
   if (StaticPrefs::mousewheel_ignore_cursor_position_in_lparam()) {
-    InitEvent(aWidget, aWheelEvent, nullptr);
+    InitEvent(aWidget, aWheelEvent, nullptr, false);
   } else {
-    InitEvent(aWidget, aWheelEvent, &aLParam);
+    InitEvent(aWidget, aWheelEvent, &aLParam,
+      SynthesizingEvent::IsSynthesizing()
+      && sInstance->mSynthesizingEvent->IsPointInWindowCoordinates()
+    );
   }
 
   aModKeyState.InitInputEvent(aWheelEvent);
@@ -1359,7 +1367,7 @@ bool MouseScrollHandler::Device::Elantech::HandleKeyMessage(
       // In this scenario, the coordinate of the event isn't supplied, so pass
       // nullptr as an argument to indicate using the coordinate from the last
       // available window message.
-      InitEvent(aWidget, appCommandEvent, nullptr);
+      InitEvent(aWidget, appCommandEvent, nullptr, false);
       aWidget->DispatchWindowEvent(&appCommandEvent);
     } else {
       MOZ_LOG(gMouseScrollLog, LogLevel::Info,
@@ -1603,7 +1611,13 @@ bool MouseScrollHandler::SynthesizingEvent::IsSynthesizing() {
 }
 
 bool MouseScrollHandler::SynthesizingEvent::ShouldSendToWidget() const {
-  return mAdditionalFlags == nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET;
+  return (mAdditionalFlags & nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET)
+    == nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET;
+}
+
+bool MouseScrollHandler::SynthesizingEvent::IsPointInWindowCoordinates() const {
+  return (mAdditionalFlags & nsIDOMWindowUtils::MOUSESCROLL_POINT_IN_WINDOW_COORD)
+    == nsIDOMWindowUtils::MOUSESCROLL_POINT_IN_WINDOW_COORD;
 }
 
 nsresult MouseScrollHandler::SynthesizingEvent::Synthesize(

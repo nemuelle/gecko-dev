@@ -547,6 +547,12 @@ interface nsIDOMWindowUtils : nsISupports {
   const unsigned long MOUSESCROLL_SEND_TO_WIDGET = 0x00000004;
 
   /**
+   * Interpreate the provided point in window/client coordinate system (not
+   * screen coordinate system)
+   */
+  const unsigned long MOUSESCROLL_POINT_IN_WINDOW_COORD = 0x00000008;
+
+  /**
    * The platform specific values of aAdditionalFlags.  Must be over 0x00010000.
    */
 
