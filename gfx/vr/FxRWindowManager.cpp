@@ -259,17 +259,20 @@ void FxRWindowManager::CollectOverlayEvents() {
   while (vr::VROverlay()->PollNextOverlayEvent(mFxRWindow.mOverlayHandle, &vrEvent,
     sizeof(vrEvent))) {
 
-    MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
-      "VREvent_t.eventType: %s",
-      vr::VRSystem()->GetEventTypeNameFromEnum((vr::EVREventType)(vrEvent.eventType))
-      ));
+    if (vrEvent.eventType != vr::VREvent_MouseMove) {
+      MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+        "VREvent_t.eventType: %s",
+        vr::VRSystem()->GetEventTypeNameFromEnum((vr::EVREventType)(vrEvent.eventType))
+        ));
+    }
 
     switch (vrEvent.eventType) {
       case vr::VREvent_ScrollDiscrete:
       case vr::VREvent_MouseMove:
       case vr::VREvent_MouseButtonUp:
       case vr::VREvent_MouseButtonDown:
-      case vr::VREvent_KeyboardCharInput: {
+      case vr::VREvent_KeyboardCharInput:
+      case vr::VREvent_OverlayFocusChanged: {
         mFxRWindow.mEventsVector.emplace_back(vrEvent);
         break;
       }
@@ -441,6 +444,26 @@ void FxRWindowManager::ProcessOverlayEvents() {
             break;
           }
         }
+      }
+
+      case vr::VREvent_OverlayFocusChanged: {
+        // As the Overlay's focus changes, update how Firefox sees the focus
+        // state of this window. This is especially important so that text
+        // input can get the caret and invoke the virtual keyboard.
+        // Note that this also means that the Fx Window for the OpenVR Overlay
+        // participates in the same focus management as windows on the
+        // desktop, so the overlay can steal focus from a desktop Firefox
+        // window and vice-versa.
+        
+        vr::VREvent_Overlay_t data = iter->data.overlay;
+
+        bool isFocused = data.overlayHandle == mFxRWindow.mOverlayHandle;
+
+        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+          "Overlay focus: %s", isFocused ? "true" : "false"
+          ));
+
+        window->DispatchFocusToTopLevelWindow(isFocused);
       }
     }
   }
