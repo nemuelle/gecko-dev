@@ -447,7 +447,9 @@ class nsWindow final : public nsWindowBase {
    * Event processing helpers
    */
   HWND GetTopLevelForFocus(HWND aCurWnd);
+public: // Is this okay to make public?
   void DispatchFocusToTopLevelWindow(bool aIsActivate);
+protected:
   bool DispatchStandardEvent(mozilla::EventMessage aMsg);
   void RelayMouseEvent(UINT aMsg, WPARAM wParam, LPARAM lParam);
   virtual bool ProcessMessage(UINT msg, WPARAM& wParam, LPARAM& lParam,
