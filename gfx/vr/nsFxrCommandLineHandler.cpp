@@ -84,6 +84,7 @@ nsFxrCommandLineHandler::Handle(nsICommandLine* aCmdLine) {
     NS_ENSURE_TRUE(wwatch, NS_ERROR_FAILURE);
 
     nsCOMPtr<mozIDOMWindowProxy> newWindow;
+<<<<<<< HEAD
     result = wwatch->OpenWindow(
         nullptr,                                        // aParent
         "chrome://fxr/content/fxrui.html"_ns,           // aUrl
@@ -91,6 +92,14 @@ nsFxrCommandLineHandler::Handle(nsICommandLine* aCmdLine) {
         "chrome,dialog=no,all,private,alwaysontop"_ns,  // aFeatures
         nullptr,                                        // aArguments
         getter_AddRefs(newWindow));
+=======
+    result = wwatch->OpenWindow(nullptr,                            // aParent
+                                "chrome://fxr/content/fxrui.html"_ns,  // aUrl
+                                "_blank"_ns,                           // aName
+                                "chrome,dialog=no,all"_ns,             // aFeatures
+                                nullptr,  // aArguments
+                                getter_AddRefs(newWindow));
+>>>>>>> Update to FF75 release
 
     MOZ_ASSERT(result == NS_OK);
 
