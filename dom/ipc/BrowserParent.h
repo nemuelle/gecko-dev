@@ -480,9 +480,9 @@ class BrowserParent final : public PBrowserParent,
       const uint64_t& aOuterWindowID,
       IsWindowSupportingProtectedMediaResolver&& aResolve);
 
-  mozilla::ipc::IPCResult RecvIsWindowSupportingWebVR(
+  mozilla::ipc::IPCResult RecvIsWebVRPermissionImplicit(
       const uint64_t& aOuterWindowID,
-      IsWindowSupportingWebVRResolver&& aResolve);
+    IsWebVRPermissionImplicitResolver&& aResolve);
 
   void LoadURL(nsIURI* aURI, nsIPrincipal* aTriggeringPrincipal);
 
