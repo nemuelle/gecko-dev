@@ -1036,7 +1036,7 @@ parent:
     /**
     * Fetches whether this window supports WebVR, which is sent back in response.
     */
-    async IsWindowSupportingWebVR(uint64_t aOuterWindowID) returns(bool isSupported);
+    async IsWebVRPermissionImplicit(uint64_t aOuterWindowID) returns(bool isAllowed);
 
     /** Records a history visit. */
     async VisitURI(nsIURI aURI, nsIURI aLastVisitedURI,
