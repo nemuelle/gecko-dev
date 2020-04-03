@@ -6265,9 +6265,30 @@ void nsGlobalWindowInner::NotifyDetectXRRuntimesCompleted() {
   // Connect to the VRManager in order to receive the runtime
   // detection results.
   mXRPermissionRequestInFlight = true;
-  RefPtr<XRPermissionRequest> request =
-      new XRPermissionRequest(this, WindowID());
-  Unused << NS_WARN_IF(NS_FAILED(request->Start()));
+
+  RefPtr<BrowserChild> browserChild =
+    BrowserChild::GetFrom(static_cast<nsPIDOMWindowInner*>(this));
+  int browserID = browserChild->ChromeOuterWindowID();
+
+  RefPtr<nsGlobalWindowInner> self(this);
+  browserChild->SendIsWebVRPermissionImplicit(browserID)->Then(
+    GetCurrentThreadSerialEventTarget(), __func__,
+    [self](bool isAllowed) {
+      if (isAllowed) {
+        // This browser has implicit permission, so proceed with permission
+        // allowed for WebVR/XR
+        self->OnXRPermissionRequestAllow();
+      }
+      else {
+        // Continue with prompting the user for permission to allow WebVR/XR
+        RefPtr<XRPermissionRequest> request =
+          new XRPermissionRequest(self, self->WindowID());
+        Unused << NS_WARN_IF(NS_FAILED(request->Start()));
+      }
+    },
+      [](const mozilla::ipc::ResponseRejectReason) {
+      MOZ_CRASH("Failed to make IPC call to IsWebVRPermissionImplicit");
+    });
 }
 
 void nsGlobalWindowInner::RequestXRPermission() {

@@ -1557,51 +1557,13 @@ already_AddRefed<Promise> Navigator::GetVRDisplays(ErrorResult& aRv) {
   }
 
   RefPtr<BrowserChild> browser(BrowserChild::GetFrom(mWindow));
-  if (!browser) {
-    MOZ_ASSERT(XRE_IsParentProcess());
-    FinishGetVRDisplays(true, p);
-  } else {
-    RefPtr<Navigator> self(this);
-    int browserID = browser->ChromeOuterWindowID();
-
-    browser->SendIsWindowSupportingWebVR(browserID)->Then(
-        GetCurrentSerialEventTarget(), __func__,
-        [self, p](bool isSupported) {
-          self->FinishGetVRDisplays(isSupported, p);
-        },
-        [p](const mozilla::ipc::ResponseRejectReason) {
-          p->MaybeRejectWithTypeError("Unable to start display enumeration");
-        });
-  }
-
-  return p.forget();
-}
-
-void Navigator::FinishGetVRDisplays(bool isWebVRSupportedInwindow, Promise* p) {
-  if (!isWebVRSupportedInwindow) {
-    // WebVR in this window is not supported, so resolve the promise
-    // with no displays available
-    nsTArray<RefPtr<VRDisplay>> vrDisplaysEmpty;
-    p->MaybeResolve(vrDisplaysEmpty);
-    return;
-  }
-
-  // Since FinishGetVRDisplays can be called asynchronously after an IPC
-  // response, it's possible that the Window can be torn down before this
-  // call. In that case, the Window's cyclic references to VR objects are
-  // also torn down and should not be recreated via
-  // NotifyHasXRSession.
-  nsGlobalWindowInner* win = nsGlobalWindowInner::Cast(mWindow);
-  if (win->IsDying()) {
-    // The Window has been torn down, so there is no further work that can
-    // be done.
-    p->MaybeRejectWithTypeError(
-        "Unable to return VRDisplays for a closed window.");
-    return;
-  }
 
   mVRGetDisplaysPromises.AppendElement(p);
+
+  nsGlobalWindowInner* win = nsGlobalWindowInner::Cast(mWindow);
   win->RequestXRPermission();
+
+  return p.forget();
 }
 
 void Navigator::OnXRPermissionRequestAllow() {

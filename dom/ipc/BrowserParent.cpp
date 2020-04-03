@@ -4122,15 +4122,15 @@ mozilla::ipc::IPCResult BrowserParent::RecvIsWindowSupportingProtectedMedia(
   return IPC_OK();
 }
 
-mozilla::ipc::IPCResult BrowserParent::RecvIsWindowSupportingWebVR(
+mozilla::ipc::IPCResult BrowserParent::RecvIsWebVRPermissionImplicit(
     const uint64_t& aOuterWindowID,
-    IsWindowSupportingWebVRResolver&& aResolve) {
+    IsWebVRPermissionImplicitResolver&& aResolve) {
 #ifdef XP_WIN
   bool isFxrWindow =
       FxRWindowManager::GetInstance()->IsFxRWindow(aOuterWindowID);
-  aResolve(!isFxrWindow);
+  aResolve(isFxrWindow);
 #else
-  aResolve(true);
+  aResolve(false);
 #endif
 
   return IPC_OK();
