@@ -6,6 +6,7 @@
 
 #include "nsWrapperCache.h"
 
+#include "mozilla/dom/BrowserChild.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/ElementBinding.h"
 #include "mozilla/dom/Promise.h"
@@ -325,6 +326,7 @@ JSObject* VRDisplay::WrapObject(JSContext* aCx,
 
 VRDisplay::VRDisplay(nsPIDOMWindowInner* aWindow, gfx::VRDisplayClient* aClient)
     : DOMEventTargetHelper(aWindow),
+      mWindow(aWindow),
       mClient(aClient),
       mDepthNear(0.01f)  // Default value from WebVR Spec
       ,
@@ -514,6 +516,7 @@ already_AddRefed<Promise> VRDisplay::RequestPresent(
     }
     mFrameInfo.Clear();
     promise->MaybeResolve(JS::UndefinedHandleValue);
+    SendPresentationChange(true);
   }
   return promise.forget();
 }
@@ -564,7 +567,23 @@ already_AddRefed<Promise> VRDisplay::ExitPresent(ErrorResult& aRv) {
   return promise.forget();
 }
 
-void VRDisplay::ExitPresentInternal() { mPresentation = nullptr; }
+void VRDisplay::SendPresentationChange(bool isPresenting) {
+  RefPtr<BrowserChild> browserChild =
+    BrowserChild::GetFrom(static_cast<nsPIDOMWindowInner*>(mWindow));
+
+  if (browserChild) {
+    int browserID = browserChild->ChromeOuterWindowID();
+
+    RefPtr<VRDisplay> self(this);
+    browserChild->SendOnWebXRPresentationChange(browserID, isPresenting);
+  }
+}
+
+void VRDisplay::ExitPresentInternal() {
+  mPresentation = nullptr;
+
+  SendPresentationChange(false);
+}
 
 void VRDisplay::Shutdown() {
   mShutdown = true;
