@@ -1038,6 +1038,8 @@ parent:
     */
     async IsWebVRPermissionImplicit(uint64_t aOuterWindowID) returns(bool isAllowed);
 
+    async OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
+
     /** Records a history visit. */
     async VisitURI(nsIURI aURI, nsIURI aLastVisitedURI,
                    uint32_t aFlags);
