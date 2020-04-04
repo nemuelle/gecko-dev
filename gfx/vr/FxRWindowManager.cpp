@@ -512,3 +512,20 @@ uint64_t FxRWindowManager::GetWindowID() const {
   MOZ_ASSERT(mFxRWindow.mWindow);
   return mFxRWindow.mWindow->WindowID();
 }
+
+// Handle when WebVR/XR content is showing or not, so that both the FxR Overlay
+// and the Fx immersive scene do not render at the same time
+void FxRWindowManager::OnWebXRPresentationChange(
+  uint64_t aOuterWindowID, bool isPresenting) {
+  if (IsFxRWindow(aOuterWindowID)) {
+    vr::VROverlayError overlayError;
+    if (isPresenting) {
+      overlayError = vr::VROverlay()->HideOverlay(mFxRWindow.mOverlayHandle);
+    }
+    else {
+      overlayError = vr::VROverlay()->ShowOverlay(mFxRWindow.mOverlayHandle);
+    }
+
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+  }
+}

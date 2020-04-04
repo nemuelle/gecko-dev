@@ -4176,4 +4176,17 @@ mozilla::ipc::IPCResult BrowserParent::RecvReleasePointerCapture(
   return IPC_OK();
 }
 
+mozilla::ipc::IPCResult BrowserParent::RecvOnWebXRPresentationChange(
+  const uint64_t& aOuterWindowID,
+  const bool& isPresenting) {
+#ifdef XP_WIN
+  FxRWindowManager::GetInstance()->OnWebXRPresentationChange(
+    aOuterWindowID,
+    isPresenting
+  );
+#endif
+
+  return IPC_OK();
+}
+
 }  // namespace mozilla::dom

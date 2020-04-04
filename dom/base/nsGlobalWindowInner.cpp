@@ -6286,9 +6286,10 @@ void nsGlobalWindowInner::NotifyDetectXRRuntimesCompleted() {
         Unused << NS_WARN_IF(NS_FAILED(request->Start()));
       }
     },
-      [](const mozilla::ipc::ResponseRejectReason) {
+    [](const mozilla::ipc::ResponseRejectReason) {
       MOZ_CRASH("Failed to make IPC call to IsWebVRPermissionImplicit");
-    });
+    }
+  );
 }
 
 void nsGlobalWindowInner::RequestXRPermission() {

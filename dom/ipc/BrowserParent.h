@@ -484,7 +484,11 @@ class BrowserParent final : public PBrowserParent,
 
   mozilla::ipc::IPCResult RecvIsWebVRPermissionImplicit(
       const uint64_t& aOuterWindowID,
-    IsWebVRPermissionImplicitResolver&& aResolve);
+      IsWebVRPermissionImplicitResolver&& aResolve);
+
+  mozilla::ipc::IPCResult RecvOnWebXRPresentationChange(
+      const uint64_t& aOuterWindowID,
+      const bool& isPresenting);
 
   void LoadURL(nsDocShellLoadState* aLoadState);
 
