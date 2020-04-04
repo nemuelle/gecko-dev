@@ -42,6 +42,8 @@ class FxRWindowManager final {
   void ShowVirtualKeyboard(uint64_t aOverlayId);
   void HideVirtualKeyboard();
 
+  void OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
+
   void ProcessOverlayEvents();
  private:
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);

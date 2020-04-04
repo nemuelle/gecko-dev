@@ -332,8 +332,13 @@ class VRDisplay final : public DOMEventTargetHelper, public nsIObserver {
   virtual void LastRelease() override;
 
   void ExitPresentInternal();
+  void SendPresentationChange(bool isPresenting);
   void Shutdown();
   void UpdateFrameInfo();
+
+  // Note: nsCOMPtr is used here because Navigator does the same thing. Not
+  // sure if this is the right type of reference to use.
+  nsCOMPtr<nsPIDOMWindowInner> mWindow;
 
   RefPtr<gfx::VRDisplayClient> mClient;
 
