@@ -65,6 +65,11 @@ class VRSession {
   bool SubmitFrame(const mozilla::gfx::VRLayer_Stereo_Immersive& aLayer);
   bool ShouldQuit() const;
 
+#ifdef MOZILLA_INTERNAL_API
+  // To use this for console output, add --MOZ_LOG=VRSessionLog:5 to cmd line
+  static mozilla::LazyLogModule sVRSessionLog;
+#endif
+
  protected:
   bool mShouldQuit;
 #if defined(XP_WIN)
