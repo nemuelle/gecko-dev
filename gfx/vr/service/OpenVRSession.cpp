@@ -1226,6 +1226,11 @@ void OpenVRSession::ProcessEvents(mozilla::gfx::VRSystemState& aSystemState) {
 
   ::vr::VREvent_t event;
   while (mVRSystem && mVRSystem->PollNextEvent(&event, sizeof(event))) {
+    MOZ_LOG(sVRSessionLog, mozilla::LogLevel::Info, (
+        "OpenVRSession::ProcessEvents -- VREvent_t.eventType: %s",
+        ::vr::VRSystem()->GetEventTypeNameFromEnum((::vr::EVREventType)(event.eventType))
+      ));
+
     switch (event.eventType) {
       case ::vr::VREvent_TrackedDeviceUserInteractionStarted:
         if (event.trackedDeviceIndex == ::vr::k_unTrackedDeviceIndex_Hmd) {
@@ -1256,6 +1261,19 @@ void OpenVRSession::ProcessEvents(mozilla::gfx::VRSystemState& aSystemState) {
       case ::vr::EVREventType::VREvent_QuitAcknowledged:
         mShouldQuit = true;
         break;
+      case ::vr::EVREventType::VREvent_ButtonPress: {
+        ::vr::VREvent_Controller_t controllerEvent = event.data.controller;
+
+        if (controllerEvent.button == ::vr::EVRButtonId::k_EButton_Grip) {
+          // so, how do i exit present from here?
+          // and, need to determine whether or not webvr is running from an overlay
+          mShouldQuit = true;
+        }
+
+        break;
+      }
+
+
       default:
         // ignore
         break;
