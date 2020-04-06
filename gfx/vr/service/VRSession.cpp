@@ -16,6 +16,10 @@
 #  define NS_WARNING(s)
 #endif
 
+#ifdef MOZILLA_INTERNAL_API
+mozilla::LazyLogModule mozilla::gfx::VRSession::sVRSessionLog("VRSessionLog");
+#endif
+
 using namespace mozilla::gfx;
 
 VRSession::VRSession()
