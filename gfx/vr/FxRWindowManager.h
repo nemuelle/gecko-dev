@@ -19,6 +19,17 @@ namespace vr {
 
 typedef std::vector<vr::VREvent_t> VREventVector;
 
+enum FxRProjectionMode {
+	VIDEO_PROJECTION_2D = 0, // 2D
+	VIDEO_PROJECTION_360 = 1, // 360 mono (VROverlayFlags::VROverlayFlags_Panorama)
+	VIDEO_PROJECTION_360S = 2, // 360 stereo (VROverlayFlags::VROverlayFlags_StereoPanorama)
+	VIDEO_PROJECTION_180 = 3, // 180 mono (No equivalent OpenVR VROverlayFlag)
+	VIDEO_PROJECTION_180LR = 4, // 180 left to right (No equivalent OpenVR VROverlayFlag)
+	VIDEO_PROJECTION_180TB = 5, // 180 top to bottom (No equivalent OpenVR VROverlayFlag)
+	VIDEO_PROJECTION_3D = 6 // 3D side by side (VROverlayFlags::VROverlayFlags_SideBySide_Parallel)
+};
+
+//
 // FxRWindowManager is a singleton that is responsible for tracking all of
 // the top-level windows created for Firefox Reality on Desktop. Only a
 // single window is initially supported.
@@ -52,11 +63,16 @@ class FxRWindowManager final {
 
   FxRWindowManager();
 
+  void ToggleProjectionMode();
+  int mCurrentProjectionIndex = 0;
+
   vr::IVRSystem * mVrApp;
   int32_t mDxgiAdapterIndex;
 
   mozilla::Atomic<bool> mIsOverlayPumpActive;
   HANDLE mOverlayPumpThread;
+
+  const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = { VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360 };//, VIDEO_PROJECTION_360S, VIDEO_PROJECTION_3D };
 
   // Only a single window is supported for tracking. Support for multiple
   // windows will require a data structure to collect windows as they are
@@ -81,4 +97,6 @@ class FxRWindowManager final {
     RECT mOverlaySizeRec;
   } mFxRWindow;
   //nsPIDOMWindowOuter* mWindow;
+
 };
+
