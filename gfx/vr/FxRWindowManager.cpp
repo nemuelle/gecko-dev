@@ -122,52 +122,69 @@ bool FxRWindowManager::CreateOverlayForWindow() {
   );
 
   if (overlayError == vr::VROverlayError_None) {
-    // Start with default width of 1.5m
-    overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-      mFxRWindow.mOverlayHandle,
-      4.0f
-    );
+	  // Start with default width of 1.5m
+	  overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
+		  mFxRWindow.mOverlayHandle,
+		  6.0f
+	  );
 
-    if (overlayError == vr::VROverlayError_None) {
-      // Set the transform for the overlay position
-      vr::HmdMatrix34_t transform = {
-        1.0f, 0.0f, 0.0f,  0.0f, // no move in x direction
-        0.0f, 1.0f, 0.0f,  2.0f, // +y to move it up
-        0.0f, 0.0f, 1.0f, -2.0f  // -z to move it forward from the origin
-      };
-      overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
-        mFxRWindow.mOverlayHandle,
-        vr::TrackingUniverseStanding,
-        &transform
-      );
+	  if (overlayError == vr::VROverlayError_None) {
+		  // Set the transform for the overlay position
+		  vr::HmdMatrix34_t transform = {
+			1.0f, 0.0f, 0.0f,  0.0f, // no move in x direction
+			0.0f, 1.0f, 0.0f,  0.0f, // +y to move it up
+			0.0f, 0.0f, 1.0f, -3.0f  // -z to move it forward from the origin
+		  };
+		  // // overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+		  // // 	mFxRWindow.mOverlayHandle,
+		  // // 	vr::TrackingUniverseStanding,
+		  // // 	&transform
+		  // // );
 
-      if (overlayError == vr::VROverlayError_None) {
-        overlayError = vr::VROverlay()->SetOverlayFlag(
-          mFxRWindow.mOverlayHandle,
-          vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible,
-          true);
+		  overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+			  mFxRWindow.mOverlayHandle,
+			  vr::TrackingUniverseStanding,
+			  &transform
+		  );
+	          // Keep the 360 sphere centered at user's head
+		  // overlayError = vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(mFxRWindow.mOverlayHandle
+			 //  , vr::k_unTrackedDeviceIndex_Hmd, &transform);
 
-        if (overlayError == vr::VROverlayError_None) {
-          overlayError = vr::VROverlay()->SetOverlayInputMethod(
-            mFxRWindow.mOverlayHandle,
-            vr::VROverlayInputMethod_Mouse
-          );
+		  if (overlayError == vr::VROverlayError_None)
+		  {
+	// 		  overlayError = vr::VROverlay()->SetOverlayFlag(mFxRWindow.mOverlayHandle,
+	// 			  vr::VROverlayFlags_Panorama,
+ // true);
+ //
+ //
+	// 		  if (overlayError == vr::VROverlayError_None) {
+				  overlayError = vr::VROverlay()->SetOverlayFlag(
+					  mFxRWindow.mOverlayHandle,
+					  vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible,
+					  true);
 
-          if (overlayError == vr::VROverlayError_None) {
-            // Finally, show the prepared overlay
-            overlayError = vr::VROverlay()->ShowOverlay(
-              mFxRWindow.mOverlayHandle
-            );
-            MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+				  if (overlayError == vr::VROverlayError_None) {
+					  overlayError = vr::VROverlay()->SetOverlayInputMethod(
+						  mFxRWindow.mOverlayHandle,
+						  vr::VROverlayInputMethod_Mouse
+					  );
 
-            if (overlayError == vr::VROverlayError_None) {
-              // Now, start listening for input...
-              overlayError = SetupOverlayInput(mFxRWindow.mOverlayHandle);
-            }
-          }
-        }
-      }
-    }
+					  if (overlayError == vr::VROverlayError_None) {
+						  // Finally, show the prepared overlay
+						  overlayError = vr::VROverlay()->ShowOverlay(
+							  mFxRWindow.mOverlayHandle
+						  );
+						  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+						  if (overlayError == vr::VROverlayError_None) {
+							  // Now, start listening for input...
+							  overlayError = SetupOverlayInput(mFxRWindow.mOverlayHandle);
+						  }
+					  }
+				  }
+			  // }
+		  }
+	  }
   }
 
   if (overlayError != vr::VROverlayError_None) {
@@ -269,12 +286,15 @@ void FxRWindowManager::CollectOverlayEvents() {
     switch (vrEvent.eventType) {
       case vr::VREvent_ScrollDiscrete:
       case vr::VREvent_MouseMove:
-      case vr::VREvent_MouseButtonUp:
-      case vr::VREvent_MouseButtonDown:
+      // case vr::VREvent_MouseButtonDown:
       case vr::VREvent_KeyboardCharInput:
       case vr::VREvent_OverlayFocusChanged: {
         mFxRWindow.mEventsVector.emplace_back(vrEvent);
         break;
+      }
+      case vr::VREvent_MouseButtonUp: {
+        ToggleProjectionMode();
+	break;
       }
       default:
         break;
@@ -289,6 +309,70 @@ void FxRWindowManager::CollectOverlayEvents() {
 
   ::LeaveCriticalSection(&mFxRWindow.mEventsCritSec);
 }
+
+void FxRWindowManager::ToggleProjectionMode() {
+
+  mCurrentProjectionIndex = (mCurrentProjectionIndex < FxRSupportedProjectionModes.size() - 1) ? mCurrentProjectionIndex + 1 : 0;
+
+  FxRProjectionMode nextMode = FxRSupportedProjectionModes[mCurrentProjectionIndex];
+
+  switch (nextMode) {
+  case(FxRProjectionMode::VIDEO_PROJECTION_360): {
+	  vr::HmdMatrix34_t transform = {
+	    1.0f, 0.0f, 0.0f, 0.0f, // no move in x direction
+	    0.0f, 1.0f, 0.0f, .0f, // +y to move it up
+	    0.0f, 0.0f, 1.0f, -3.0f  // -z to move it forward from the origin
+	  };
+	  // Keep the 360 sphere centered at user's head
+	  vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(mFxRWindow.mOverlayHandle
+		  , vr::k_unTrackedDeviceIndex_Hmd, &transform);
+
+	  if (overlayError == vr::VROverlayError_None)
+	  {
+		  overlayError = vr::VROverlay()->SetOverlayFlag(mFxRWindow.mOverlayHandle,
+			  vr::VROverlayFlags_Panorama,
+			  true);
+	  }
+
+	  if (overlayError != vr::VROverlayError_None)
+	  {
+		  // TODO: Not sure what should be done here...
+	  }
+
+	  break;
+  }
+  case (FxRProjectionMode::VIDEO_PROJECTION_2D):
+  {
+	  vr::HmdMatrix34_t transform = {
+		1.0f, 0.0f, 0.0f,  0.0f, // no move in x direction
+		0.0f, 1.0f, 0.0f,  2.0f, // +y to move it up
+		0.0f, 0.0f, 1.0f, -3.0f  // -z to move it forward from the origin
+	  };
+
+	  vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+		  mFxRWindow.mOverlayHandle,
+		  vr::TrackingUniverseStanding,
+		  &transform
+	  );
+	  if (overlayError == vr::VROverlayError_None)
+	  {
+		  overlayError = vr::VROverlay()->SetOverlayFlag(mFxRWindow.mOverlayHandle,
+			  vr::VROverlayFlags_Panorama,
+			  false);
+	  }
+	  if (overlayError != vr::VROverlayError_None)
+	  {
+            // TODO: Not sure what should be done here...
+	  }
+
+	  mCurrentProjectionIndex = 0;
+	  break;
+  }
+
+  }
+}
+
+
 
 // Runs on UI thread (for reasons explained with CollectOverlayEvents).
 // Copies OpenVR events that were collected on background thread and converts
@@ -465,6 +549,47 @@ void FxRWindowManager::ProcessOverlayEvents() {
 
         window->DispatchFocusToTopLevelWindow(isFocused);
       }
+
+	  case ::vr::VREvent_ButtonUnpress:
+	  case ::vr::VREvent_ButtonPress:
+      {
+		  ::vr::VREvent_Controller_t controllerEvent = iter->data.controller;
+
+		  if (controllerEvent.button == ::vr::EVRButtonId::k_EButton_A) {
+                    
+			  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+				  "Got button A"
+				  ));
+
+		  }
+		  if (controllerEvent.button == ::vr::EVRButtonId::k_EButton_IndexController_A) {
+
+			  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+				  "Got button index A"
+				  ));
+
+		  }
+		  if (controllerEvent.button == ::vr::EVRButtonId::k_EButton_Grip) {
+
+			  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+				  "Got button Grip"
+				  ));
+
+		  }
+		  else {
+			  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+				  "Got button: %u", controllerEvent.button
+				  ));
+		  }
+
+		  break;
+	  }
+	  case ::vr::VREvent_DualAnalog_Press: {
+		  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+			  "Got dual analog press"
+			  ));
+
+	  }
     }
   }
 
