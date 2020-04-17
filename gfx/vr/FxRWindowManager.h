@@ -56,6 +56,9 @@ class FxRWindowManager final {
   void OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
 
   void ProcessOverlayEvents();
+
+  void ChangeProjectionMode(FxRProjectionMode projectionMode);
+
  private:
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
   static DWORD OverlayInputPump(_In_ LPVOID lpParameter);
@@ -72,7 +75,7 @@ class FxRWindowManager final {
   mozilla::Atomic<bool> mIsOverlayPumpActive;
   HANDLE mOverlayPumpThread;
 
-  const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = { VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360 };//, VIDEO_PROJECTION_360S, VIDEO_PROJECTION_3D };
+  const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = {VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360, VIDEO_PROJECTION_360S, VIDEO_PROJECTION_3D};
 
   // Only a single window is supported for tracking. Support for multiple
   // windows will require a data structure to collect windows as they are
