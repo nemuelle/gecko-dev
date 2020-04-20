@@ -273,7 +273,7 @@ void VRService::ServiceWaitForImmersive() {
         "gfx::VRService::ServiceShutdown", this, &VRService::ServiceShutdown));
   } else if (IsImmersiveContentActive(mBrowserState)) {
     // Enter Immersive Mode
-    mSession->StartPresentation();
+    mSession->StartPresentation(mSystemState);
     mSession->StartFrame(mSystemState);
     PushState(mSystemState);
 
