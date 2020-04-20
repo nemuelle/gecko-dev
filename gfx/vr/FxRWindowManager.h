@@ -14,19 +14,24 @@ class nsPIDOMWindowOuter;
 class nsWindow;
 class nsIWidget;
 namespace vr {
-  class IVRSystem;
+class IVRSystem;
 };
 
 typedef std::vector<vr::VREvent_t> VREventVector;
 
 enum FxRProjectionMode {
-	VIDEO_PROJECTION_2D = 0, // 2D
-	VIDEO_PROJECTION_360 = 1, // 360 mono (VROverlayFlags::VROverlayFlags_Panorama)
-	VIDEO_PROJECTION_360S = 2, // 360 stereo (VROverlayFlags::VROverlayFlags_StereoPanorama)
-	VIDEO_PROJECTION_180 = 3, // 180 mono (No equivalent OpenVR VROverlayFlag)
-	VIDEO_PROJECTION_180LR = 4, // 180 left to right (No equivalent OpenVR VROverlayFlag)
-	VIDEO_PROJECTION_180TB = 5, // 180 top to bottom (No equivalent OpenVR VROverlayFlag)
-	VIDEO_PROJECTION_3D = 6 // 3D side by side (VROverlayFlags::VROverlayFlags_SideBySide_Parallel)
+  VIDEO_PROJECTION_2D = 0,  // 2D
+  VIDEO_PROJECTION_360 =
+      1,  // 360 mono (VROverlayFlags::VROverlayFlags_Panorama)
+  VIDEO_PROJECTION_360S =
+      2,  // 360 stereo (VROverlayFlags::VROverlayFlags_StereoPanorama)
+  VIDEO_PROJECTION_180 = 3,  // 180 mono (No equivalent OpenVR VROverlayFlag)
+  VIDEO_PROJECTION_180LR =
+      4,  // 180 left to right (No equivalent OpenVR VROverlayFlag)
+  VIDEO_PROJECTION_180TB =
+      5,  // 180 top to bottom (No equivalent OpenVR VROverlayFlag)
+  VIDEO_PROJECTION_3D =
+      6  // 3D side by side (VROverlayFlags::VROverlayFlags_SideBySide_Parallel)
 };
 
 //
@@ -41,7 +46,7 @@ class FxRWindowManager final {
   bool VRinit();
   bool CreateOverlayForWindow();
   void SetRenderPid(uint64_t aOverlayId, uint32_t aPid);
-  uint64_t GetOverlayId() const;  
+  uint64_t GetOverlayId() const;
 
   bool AddWindow(nsPIDOMWindowOuter* aWindow);
   void RemoveWindow(uint64_t aOverlayId);
@@ -57,7 +62,7 @@ class FxRWindowManager final {
 
   void ProcessOverlayEvents();
 
-  void ChangeProjectionMode(FxRProjectionMode projectionMode);
+  vr::VROverlayError ChangeProjectionMode(FxRProjectionMode projectionMode);
 
  private:
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
@@ -69,18 +74,20 @@ class FxRWindowManager final {
   void ToggleProjectionMode();
   int mCurrentProjectionIndex = 0;
 
-  vr::IVRSystem * mVrApp;
+  vr::IVRSystem* mVrApp;
   int32_t mDxgiAdapterIndex;
 
   mozilla::Atomic<bool> mIsOverlayPumpActive;
   HANDLE mOverlayPumpThread;
 
-  const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = {VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360, VIDEO_PROJECTION_360S, VIDEO_PROJECTION_3D};
+  const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = {
+      VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360, VIDEO_PROJECTION_360S,
+      VIDEO_PROJECTION_3D};
 
   // Only a single window is supported for tracking. Support for multiple
   // windows will require a data structure to collect windows as they are
   // created.
-  struct FxRWindow{
+  struct FxRWindow {
     // Note: mWidget takes a full reference
     nsIWidget* mWidget;
     nsPIDOMWindowOuter* mWindow;
@@ -99,7 +106,5 @@ class FxRWindowManager final {
     POINT mLastMousePt;
     RECT mOverlaySizeRec;
   } mFxRWindow;
-  //nsPIDOMWindowOuter* mWindow;
-
+  // nsPIDOMWindowOuter* mWindow;
 };
-

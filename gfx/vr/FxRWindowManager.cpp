@@ -117,38 +117,15 @@ bool FxRWindowManager::CreateOverlayForWindow() {
       sKey.c_str(), sKey.c_str(), &mFxRWindow.mOverlayHandle);
 
   if (overlayError == vr::VROverlayError_None) {
-    // Start with default width of 1.5m
+    // Start with default width of 4m
     overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-        mFxRWindow.mOverlayHandle, 6.0f);
+        mFxRWindow.mOverlayHandle, 4.0f);
 
     if (overlayError == vr::VROverlayError_None) {
-      // Set the transform for the overlay position
-      vr::HmdMatrix34_t transform = {
-          1.0f, 0.0f, 0.0f, 0.0f,  // no move in x direction
-          0.0f, 1.0f, 0.0f, 0.0f,  // +y to move it up
-          0.0f, 0.0f, 1.0f, -3.0f  // -z to move it forward from the origin
-      };
-      // // overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
-      // // 	mFxRWindow.mOverlayHandle,
-      // // 	vr::TrackingUniverseStanding,
-      // // 	&transform
-      // // );
-
-      overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
-          mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding, &transform);
-      // Keep the 360 sphere centered at user's head
-      // overlayError =
-      // vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(mFxRWindow.mOverlayHandle
-      //  , vr::k_unTrackedDeviceIndex_Hmd, &transform);
-
+      // Set up the projection as a simple 2D window to start
+      overlayError =
+          ChangeProjectionMode(FxRProjectionMode::VIDEO_PROJECTION_2D);
       if (overlayError == vr::VROverlayError_None) {
-        // 		  overlayError =
-        // vr::VROverlay()->SetOverlayFlag(mFxRWindow.mOverlayHandle,
-        // 			  vr::VROverlayFlags_Panorama,
-        // true);
-        //
-        //
-        // 		  if (overlayError == vr::VROverlayError_None) {
         overlayError = vr::VROverlay()->SetOverlayFlag(
             mFxRWindow.mOverlayHandle,
             vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible, true);
@@ -169,7 +146,6 @@ bool FxRWindowManager::CreateOverlayForWindow() {
             }
           }
         }
-        // }
       }
     }
   }
@@ -296,7 +272,10 @@ void FxRWindowManager::ToggleProjectionMode() {
   ChangeProjectionMode(nextMode);
 }
 
-void FxRWindowManager::ChangeProjectionMode(FxRProjectionMode projectionMode) {
+// Changes the projection mode to one of the supported projection modes defined
+// in FxRProjectionMode. Returns true if changing the projection was successful
+vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
+    FxRProjectionMode projectionMode) {
   bool isPanorama = false;
   bool isStereoPanorama = false;
   bool isStereo2D = false;
@@ -316,10 +295,12 @@ void FxRWindowManager::ChangeProjectionMode(FxRProjectionMode projectionMode) {
     }
   }
   if (isPanorama || isStereoPanorama) {
+    // For panoramic viewing, we want the overlay closer to the user's eyes to
+    // fill the entire FOV
     vr::HmdMatrix34_t transform = {
         1.0f, 0.0f, 0.0f, 0.0f,  // no move in x direction
         0.0f, 1.0f, 0.0f, 0.0f,  // +y to move it up
-        0.0f, 0.0f, 1.0f, -2.0f  // -z to move it forward from the origin
+        0.0f, 0.0f, 1.0f, -1.0f  // -z to move it forward from the origin
     };
     // Keep the content centered at user's head
     overlayError = vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
@@ -331,16 +312,17 @@ void FxRWindowManager::ChangeProjectionMode(FxRProjectionMode projectionMode) {
         0.0f, 0.0f, 1.0f, -3.0f  // -z to move it forward from the origin
     };
     if (isStereo2D) {
+      // For stereo viewing, we want the overlay further to the user's eyes, as
+      // the apparent distance of the resultant 3D image is closer than a 2D
+      // image
       vr::HmdMatrix34_t transform = {
           1.0f, 0.0f, 0.0f, 0.0f,  // no move in x direction
           0.0f, 1.0f, 0.0f, 2.0f,  // +y to move it up
           0.0f, 0.0f, 1.0f, -6.0f  // -z to move it forward from the origin
       };
     }
-    vr::VROverlayError overlayError =
-        vr::VROverlay()->SetOverlayTransformAbsolute(
-            mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
-            &transform);
+    overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+        mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding, &transform);
   }
 
   if (overlayError == vr::VROverlayError_None) {
@@ -358,9 +340,7 @@ void FxRWindowManager::ChangeProjectionMode(FxRProjectionMode projectionMode) {
         isStereo2D);
   }
 
-  if (overlayError != vr::VROverlayError_None) {
-    // TODO: Not sure what should be done here...
-  }
+  return overlayError;
 }
 
 // Runs on UI thread (for reasons explained with CollectOverlayEvents).
@@ -525,31 +505,6 @@ void FxRWindowManager::ProcessOverlayEvents() {
                 ("Overlay focus: %s", isFocused ? "true" : "false"));
 
         window->DispatchFocusToTopLevelWindow(isFocused);
-      }
-
-      case ::vr::VREvent_ButtonUnpress:
-      case ::vr::VREvent_ButtonPress: {
-        ::vr::VREvent_Controller_t controllerEvent = iter->data.controller;
-
-        if (controllerEvent.button == ::vr::EVRButtonId::k_EButton_A) {
-          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, ("Got button A"));
-        }
-        if (controllerEvent.button ==
-            ::vr::EVRButtonId::k_EButton_IndexController_A) {
-          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, ("Got button index A"));
-        }
-        if (controllerEvent.button == ::vr::EVRButtonId::k_EButton_Grip) {
-          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, ("Got button Grip"));
-
-        } else {
-          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
-                  ("Got button: %u", controllerEvent.button));
-        }
-
-        break;
-      }
-      case ::vr::VREvent_DualAnalog_Press: {
-        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, ("Got dual analog press"));
       }
     }
   }
