@@ -314,6 +314,7 @@ class VRDisplay final : public DOMEventTargetHelper, public nsIObserver {
                                            CallerType aCallerType,
                                            ErrorResult& aRv);
   already_AddRefed<Promise> ExitPresent(ErrorResult& aRv);
+  void ExitPresentFromController();
   void GetLayers(nsTArray<VRLayer>& result);
   void SubmitFrame();
 
