@@ -57,6 +57,7 @@ class VRSession {
   virtual void ProcessEvents(mozilla::gfx::VRSystemState& aSystemState) = 0;
   virtual void StartFrame(mozilla::gfx::VRSystemState& aSystemState) = 0;
   virtual bool StartPresentation() = 0;
+  bool StartPresentation(mozilla::gfx::VRSystemState& aSystemState);
   virtual void StopPresentation() = 0;
   virtual void VibrateHaptic(uint32_t aControllerIdx, uint32_t aHapticIndex,
                              float aIntensity, float aDuration) = 0;

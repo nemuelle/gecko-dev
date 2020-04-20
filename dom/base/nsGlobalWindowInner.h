@@ -532,6 +532,7 @@ class nsGlobalWindowInner final : public mozilla::dom::EventTarget,
   void DispatchVRDisplayConnect(uint32_t aDisplayID);
   void DispatchVRDisplayDisconnect(uint32_t aDisplayID);
   void DispatchVRDisplayPresentChange(uint32_t aDisplayID);
+  void ExitPresentAllDisplaysFromController();
 
 #define EVENT(name_, id_, type_, struct_)                              \
   mozilla::dom::EventHandlerNonNull* GetOn##name_() {                  \

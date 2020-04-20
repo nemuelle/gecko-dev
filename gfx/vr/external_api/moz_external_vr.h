@@ -390,7 +390,7 @@ struct VRControllerState {
   // action has not ended yet.
   uint64_t selectActionStopFrameId;
 
-  // start frame Id of the most recent primary squeeze
+  // Start frame Id of the most recent primary squeeze
   // action, or 0 if the squeeze action has never occurred.
   uint64_t squeezeActionStartFrameId;
   // End frame Id of the most recent primary squeeze
@@ -399,6 +399,13 @@ struct VRControllerState {
   // squeezeActionStartFrameId, then the squeeze
   // action has not ended yet.
   uint64_t squeezeActionStopFrameId;
+
+  // Start frame ID of the most recent grip press, or 0 if the action has never
+  // occurred or is reset.
+  uint64_t exitPresentStartFrameId;
+  // End frame ID of the most recent grip unpress, or 0 if the action never
+  // occurred or is reset.
+  uint64_t exitPresentStopFrameId;
 
   uint32_t numButtons;
   uint32_t numAxes;

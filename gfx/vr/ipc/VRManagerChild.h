@@ -41,6 +41,7 @@ class VRManagerEventObserver {
   virtual bool GetStopActivityStatus() const = 0;
   virtual void NotifyEnumerationCompleted() = 0;
   virtual void NotifyDetectRuntimesCompleted() = 0;
+  virtual void NotifyExitPresentFromController() = 0;
 
  protected:
   virtual ~VRManagerEventObserver() = default;
@@ -102,6 +103,8 @@ class VRManagerChild : public PVRManagerChild {
   void FireDOMVRDisplayDisconnectEvent(uint32_t aDisplayID);
   void FireDOMVRDisplayPresentChangeEvent(uint32_t aDisplayID);
   void FireDOMVRDisplayConnectEventsForLoad(VRManagerEventObserver* aObserver);
+
+  void NotifyExitPresentFromController();
 
   void HandleFatalError(const char* aMsg) const override;
   void ActorDestroy(ActorDestroyReason aReason) override;

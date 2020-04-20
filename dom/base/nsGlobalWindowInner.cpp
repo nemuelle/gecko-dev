@@ -6728,6 +6728,15 @@ void nsGlobalWindowInner::DispatchVRDisplayPresentChange(uint32_t aDisplayID) {
   }
 }
 
+void nsGlobalWindowInner::ExitPresentAllDisplaysFromController() {
+  // Ensure that our list of displays is up to date
+  VRDisplay::UpdateVRDisplays(mVRDisplays, this);
+
+  for (const auto& display : mVRDisplays) {
+    display->ExitPresentFromController();
+  }
+}
+
 enum WindowState {
   // These constants need to match the constants in Window.webidl
   STATE_MAXIMIZED = 1,
