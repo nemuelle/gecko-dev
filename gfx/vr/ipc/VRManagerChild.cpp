@@ -509,6 +509,14 @@ void VRManagerChild::FireDOMVRDisplayConnectEventInternal(uint32_t aDisplayID) {
   }
 }
 
+void VRManagerChild::NotifyExitPresentFromController() {
+  // Iterate over a copy of mListeners, as dispatched events may modify it.
+  nsTArray<RefPtr<VRManagerEventObserver>> listeners(mListeners);
+  for (auto& listener : listeners) {
+    listener->NotifyExitPresentFromController();
+  }
+}
+
 void VRManagerChild::FireDOMVRDisplayDisconnectEventInternal(
     uint32_t aDisplayID) {
   // Iterate over a copy of mListeners, as dispatched events may modify it.

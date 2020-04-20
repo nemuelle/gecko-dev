@@ -119,6 +119,15 @@ void VRDisplayClient::FireEvents() {
   // Only fire these events for non-chrome VR sessions
   bool isPresenting = (mDisplayInfo.mPresentingGroups & kVRGroupContent) != 0;
 
+  if (isPresenting
+    && mDisplayInfo.mControllerState->exitPresentStartFrameId != 0
+    && mDisplayInfo.mControllerState->exitPresentStartFrameId <= 
+        mDisplayInfo.mControllerState->exitPresentStopFrameId) {
+    // In this case, the controller has successfully registered the gesture to
+    // exit present, so forward this command to the content process(es). 
+    vm->NotifyExitPresentFromController();
+  }
+
   // Check if we need to trigger onVRDisplayPresentChange event
   if (bLastEventWasPresenting != isPresenting) {
     bLastEventWasPresenting = isPresenting;
