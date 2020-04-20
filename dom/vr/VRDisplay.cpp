@@ -575,6 +575,10 @@ void VRDisplay::SendPresentationChange(bool isPresenting) {
   }
 }
 
+void VRDisplay::ExitPresentFromController() {
+  ExitPresentInternal();
+}
+
 void VRDisplay::ExitPresentInternal() {
   mPresentation = nullptr;
 
