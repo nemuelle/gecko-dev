@@ -43,6 +43,7 @@ class FxRWindowManager final {
   void HideVirtualKeyboard();
 
   void OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
+  void ToggleMedia();
 
   void ProcessOverlayEvents();
  private:

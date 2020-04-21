@@ -110,5 +110,11 @@ PlaybackState MediaControlKeysEventSource::GetPlaybackState() const {
   return mPlaybackState;
 }
 
+void MediaControlKeysEventSource::OnKeyPressed(MediaControlKeysEvent aKeyEvent) {
+  for (auto& listener : mListeners) {
+    listener->OnKeyPressed(aKeyEvent);
+  }
+}
+
 }  // namespace dom
 }  // namespace mozilla
