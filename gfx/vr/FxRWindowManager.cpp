@@ -14,6 +14,8 @@
 #include "nsIDOMWindowUtils.h"
 #include "WinMouseScrollHandler.h"
 
+#include "mozilla/dom/MediaControlService.h"
+
 static mozilla::StaticAutoPtr<FxRWindowManager> sFxrWinMgrInstance;
 // To use this for console output, add --MOZ_LOG=FxRWindowManager:5 to cmd line
 static mozilla::LazyLogModule gFxrWinLog("FxRWindowManager");
@@ -238,6 +240,8 @@ void FxRWindowManager::CollectOverlayEvents() {
       case vr::VREvent_ScrollDiscrete:
       case vr::VREvent_MouseMove:
       case vr::VREvent_MouseButtonDown:
+      case vr::VREvent_ButtonPress:
+      case vr::VREvent_ButtonUnpress:
       case vr::VREvent_KeyboardCharInput:
       case vr::VREvent_OverlayFocusChanged: {
         mFxRWindow.mEventsVector.emplace_back(vrEvent);
@@ -343,9 +347,6 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
 // Copies OpenVR events that were collected on background thread and converts
 // them to UI events to be dispatched by the widget.
 void FxRWindowManager::ProcessOverlayEvents() {
-  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
-          ("Processing Overlay Input Events"));
-
   VREventVector rgEvents;
   // See note above SynthesizeNativeMouseScrollEvent for reasoning
   bool hasScrolled = false;
@@ -377,27 +378,56 @@ void FxRWindowManager::ProcessOverlayEvents() {
       case vr::VREvent_MouseButtonDown: {
         vr::VREvent_Mouse_t data = iter->data.mouse;
 
+        if (eventType == vr::VREvent_MouseButtonDown
+          || eventType == vr::VREvent_MouseButtonUp) {
+          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+            "VREvent_Mouse_t.button: %u",
+            data.button
+            ));
+        }
+
         // Windows' origin is top-left, whereas OpenVR's origin is
         // bottom-left, so transform the y-coordinate.
         mFxRWindow.mLastMousePt.x = (LONG)(data.x);
         mFxRWindow.mLastMousePt.y =
             mFxRWindow.mOverlaySizeRec.bottom - (LONG)(data.y);
 
-        mozilla::EventMessage eMsg;
-        if (eventType == vr::VREvent_MouseMove) {
-          eMsg = mozilla::EventMessage::eMouseMove;
-        } else if (eventType == vr::VREvent_MouseButtonDown) {
-          eMsg = mozilla::EventMessage::eMouseDown;
-        } else {
-          MOZ_ASSERT(eventType == vr::VREvent_MouseButtonUp);
-          eMsg = mozilla::EventMessage::eMouseUp;
-        }
+        if (data.button != vr::EVRMouseButton::VRMouseButton_Right) {
+          mozilla::EventMessage eMsg;
+          if (eventType == vr::VREvent_MouseMove) {
+            eMsg = mozilla::EventMessage::eMouseMove;
+          }
+          else if (eventType == vr::VREvent_MouseButtonDown) {
+            eMsg = mozilla::EventMessage::eMouseDown;
+          }
+          else {
+            MOZ_ASSERT(eventType == vr::VREvent_MouseButtonUp);
+            eMsg = mozilla::EventMessage::eMouseUp;
+          }
 
-        window->DispatchMouseEvent(
+          window->DispatchMouseEvent(
             eMsg,
             0,                                      // wParam
             POINTTOPOINTS(mFxRWindow.mLastMousePt)  // lParam
-        );
+          );
+        }
+        else if (eventType == vr::VREvent_MouseButtonUp) {
+          // When the 2nd button is released, toggle the currently playing media.
+          // Add a check to see if FullScreen + 360 video is active
+          ToggleMedia();
+        }
+
+        break;
+      }
+
+      case vr::VREvent_ButtonPress:
+      case vr::VREvent_ButtonUnpress: {
+        vr::VREvent_Controller_t data = iter->data.controller;
+
+        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+          "VREvent_Controller_t.button: %u",
+          data.button
+          ));
 
         break;
       }
@@ -572,5 +602,18 @@ vr::VROverlayError FxRWindowManager::OnFullScreenChange(bool aIsFullScreen) {
     return ChangeProjectionMode(VIDEO_PROJECTION_360);
   } else {
     return ChangeProjectionMode(VIDEO_PROJECTION_2D);
+  }
+}
+
+void FxRWindowManager::ToggleMedia() {
+  RefPtr<mozilla::dom::MediaControlService> service = mozilla::dom::MediaControlService::GetService();
+  mozilla::dom::MediaControlKeysEventSource* source = service->GetMediaControlKeysEventSource();
+  mozilla::dom::PlaybackState state = source->GetPlaybackState();
+
+  if (state == mozilla::dom::PlaybackState::ePlaying) {
+    service->GetMediaControlKeysEventSource()->OnKeyPressed(mozilla::dom::MediaControlKeysEvent::ePause);
+  }
+  else {
+    service->GetMediaControlKeysEventSource()->OnKeyPressed(mozilla::dom::MediaControlKeysEvent::ePlay);
   }
 }
