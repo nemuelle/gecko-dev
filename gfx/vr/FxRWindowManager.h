@@ -60,6 +60,7 @@ class FxRWindowManager final {
 
   void OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
   vr::VROverlayError OnFullScreenChange(bool aIsFullScreen);
+  void ToggleMedia();
 
   void ProcessOverlayEvents();
 

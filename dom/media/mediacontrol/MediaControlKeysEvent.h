@@ -89,6 +89,8 @@ class MediaControlKeysEventSource {
   // Override this method if the event source needs to handle the metadata.
   virtual void SetMediaMetadata(const MediaMetadataBase& aMetadata) {}
 
+  void OnKeyPressed(MediaControlKeysEvent aKeyEvent);
+
  protected:
   virtual ~MediaControlKeysEventSource() = default;
   nsTArray<RefPtr<MediaControlKeysEventListener>> mListeners;
