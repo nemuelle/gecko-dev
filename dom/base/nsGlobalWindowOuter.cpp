@@ -4648,10 +4648,9 @@ nsresult nsGlobalWindowOuter::SetFullscreenInternal(FullscreenReason aReason,
     }
   }
 
-#if defined(NIGHTLY_BUILD) && defined(XP_WIN)
+#if defined(XP_WIN)
   if (FxRWindowManager::GetInstance()->IsFxRWindow(mWindowID)) {
-    mozilla::gfx::VRShMem shmem(nullptr, true /*aRequiresMutex*/);
-    shmem.SendFullscreenState(mWindowID, aFullscreen);
+    FxRWindowManager::GetInstance()->OnFullScreenChange(aFullscreen);
   }
 #endif  // NIGHTLY_BUILD && XP_WIN
   FinishFullscreenChange(aFullscreen);
