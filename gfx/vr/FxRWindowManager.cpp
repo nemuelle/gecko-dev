@@ -237,14 +237,10 @@ void FxRWindowManager::CollectOverlayEvents() {
     switch (vrEvent.eventType) {
       case vr::VREvent_ScrollDiscrete:
       case vr::VREvent_MouseMove:
-        // case vr::VREvent_MouseButtonDown:
+      case vr::VREvent_MouseButtonDown:
       case vr::VREvent_KeyboardCharInput:
       case vr::VREvent_OverlayFocusChanged: {
         mFxRWindow.mEventsVector.emplace_back(vrEvent);
-        break;
-      }
-      case vr::VREvent_MouseButtonUp: {
-        ToggleProjectionMode();
         break;
       }
       default:
@@ -568,5 +564,13 @@ void FxRWindowManager::OnWebXRPresentationChange(uint64_t aOuterWindowID,
     }
 
     MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+  }
+}
+
+vr::VROverlayError FxRWindowManager::OnFullScreenChange(bool aIsFullScreen) {
+  if (aIsFullScreen) {
+    return ChangeProjectionMode(VIDEO_PROJECTION_360);
+  } else {
+    return ChangeProjectionMode(VIDEO_PROJECTION_2D);
   }
 }
