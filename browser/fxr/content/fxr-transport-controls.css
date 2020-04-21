@@ -1,0 +1,37 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+.transport_container {
+  margin-block: 4px;
+  
+  display:flex;
+  flex-direction: row;
+  
+  border: 2px solid var(--num08);
+  border-radius: 44px;
+}
+
+.icon_container {
+  margin: 0 5px;
+}
+
+.icon_backward {
+  background-image: url("assets/icon-backward.svg");
+}
+
+.icon_playpause {
+  background-image: url("assets/icon-playpause-stopgap.svg");
+}
+
+.icon_proj_360 {
+  background-image: url("assets/icon-360.svg");
+}
+
+.icon_proj_360S {
+  background-image: url("assets/icon-stereo360.svg");
+}
+
+.icon_proj_3D {
+  background-image: url("assets/icon-3dsidebyside.svg");
+}
