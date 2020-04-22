@@ -55,6 +55,7 @@
 #  include "ProfilerMarkerPayload.h"
 #endif
 #include "nsIException.h"
+#include "FxRWindowManager.h"
 
 namespace mozilla::dom {
 
@@ -1361,6 +1362,18 @@ void ChromeUtils::GetAllDOMProcesses(
   for (auto* cp : ContentParent::AllProcesses(ContentParent::eLive)) {
     aParents.AppendElement(cp);
   }
+}
+
+/* static */
+void ChromeUtils::SetFxrPlayMediaState(const GlobalObject& aGlobal,
+  const nsAString& aState) {
+  FxRWindowManager::GetInstance()->SetPlayMediaState(aState);
+}
+
+/* static */
+void ChromeUtils::SetFxrProjectionMode(const GlobalObject& aGlobal,
+  const nsAString& aMode) {
+  FxRWindowManager::GetInstance()->SetProjectionMode(aMode);
 }
 
 }  // namespace mozilla::dom

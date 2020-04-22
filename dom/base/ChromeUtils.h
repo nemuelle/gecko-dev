@@ -224,6 +224,11 @@ class ChromeUtils {
   static void GetAllDOMProcesses(
       GlobalObject& aGlobal, nsTArray<RefPtr<nsIDOMProcessParent>>& aParents,
       ErrorResult& aRv);
+
+  static void SetFxrPlayMediaState(const GlobalObject& aGlobal,
+                                   const nsAString& aState);
+  static void SetFxrProjectionMode(const GlobalObject& aGlobal,
+                                   const nsAString& aMode);
 };
 
 }  // namespace dom

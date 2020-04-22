@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <vector>
 #include "mozilla/Atomics.h"
+#include "nsAString.h"
 #include "windows.h"
 #include "openvr.h"
 
@@ -62,6 +63,9 @@ class FxRWindowManager final {
   void OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
   vr::VROverlayError OnFullScreenChange(bool aIsFullScreen);
   void ToggleMedia();
+
+  void SetPlayMediaState(const nsAString& aState);
+  void SetProjectionMode(const nsAString& aMode);
 
   void ProcessOverlayEvents();
 

@@ -493,6 +493,19 @@ partial namespace ChromeUtils {
    */
   [Throws, ChromeOnly]
   sequence<nsIDOMProcessParent> getAllDOMProcesses();
+
+  /**
+   * Supports controlling full-screen media playback through FxRWindowManager
+   */
+  [ChromeOnly]
+  void setFxrPlayMediaState(DOMString aState);
+
+  /**
+   * Supports modifying the projection of the currently playing full-screen
+   * media through FxRWindowManager
+   */ 
+  [ChromeOnly]
+  void setFxrProjectionMode(DOMString aMode);
 };
 
 /*
