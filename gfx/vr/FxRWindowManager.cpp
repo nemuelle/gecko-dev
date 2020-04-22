@@ -364,7 +364,7 @@ void FxRWindowManager::ProcessOverlayEvents() {
         }
         else if (eventType == vr::VREvent_MouseButtonUp) {
           // When the 2nd button is released, toggle the currently playing media.
-          // Add a check to see if FullScreen + 360 video is active
+          // TODO: Add a check to see if FullScreen + 360 video is active
           ToggleMedia();
         }
 
@@ -557,6 +557,7 @@ void FxRWindowManager::OnWebXRPresentationChange(
   }
 }
 
+
 void FxRWindowManager::ToggleMedia() {
   RefPtr<mozilla::dom::MediaControlService> service = mozilla::dom::MediaControlService::GetService();
   mozilla::dom::MediaControlKeysEventSource* source = service->GetMediaControlKeysEventSource();
@@ -568,4 +569,28 @@ void FxRWindowManager::ToggleMedia() {
   else {
     service->GetMediaControlKeysEventSource()->OnKeyPressed(mozilla::dom::MediaControlKeysEvent::ePlay);
   }
+}
+
+// Supports modifying via the following arguments:
+// - "toggle" - Toggles between playing and pausing current media
+void FxRWindowManager::SetPlayMediaState(const nsAString& aState) {
+  if (aState == u"toggle") {
+    ToggleMedia();
+  }
+  else {
+    MOZ_CRASH("Unsupported Param");
+  }
+}
+
+// Supports changing projection mode or exiting fullscreen presentation via
+// the following arguments:
+// - "exit" - Ends the current fullscreen presentation
+// - "360" - Maps to xxxx
+// - "360-stereo" - Maps to xxxx
+// - "3d" - Maps to xxxx
+void FxRWindowManager::SetProjectionMode(const nsAString& aMode) {
+  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+    "FxRWindowManager::SetProjectionMode - %s",
+    NS_ConvertUTF16toUTF8(aMode).Data()
+    ));
 }
