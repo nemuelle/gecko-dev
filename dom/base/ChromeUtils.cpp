@@ -50,6 +50,7 @@
 #  include "ProfilerMarkerPayload.h"
 #endif
 #include "nsIException.h"
+#include "FxRWindowManager.h"
 
 namespace mozilla {
 namespace dom {
@@ -1306,6 +1307,18 @@ MediaSessionPlaybackTestState ChromeUtils::GetCurrentMediaSessionPlaybackState(
         service->GetMainControllerPlaybackState());
   }
   return MediaSessionPlaybackTestState::Stopped;
+}
+
+/* static */
+void ChromeUtils::SetFxrPlayMediaState(const GlobalObject& aGlobal,
+  const nsAString& aState) {
+  FxRWindowManager::GetInstance()->SetPlayMediaState(aState);
+}
+
+/* static */
+void ChromeUtils::SetFxrProjectionMode(const GlobalObject& aGlobal,
+  const nsAString& aMode) {
+  FxRWindowManager::GetInstance()->SetProjectionMode(aMode);
 }
 
 }  // namespace dom

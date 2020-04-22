@@ -227,6 +227,12 @@ class ChromeUtils {
   // This function would only be used for testing.
   static MediaSessionPlaybackTestState GetCurrentMediaSessionPlaybackState(
       GlobalObject& aGlobal);
+      
+  static void SetFxrPlayMediaState(const GlobalObject& aGlobal,
+                                   const nsAString& aState);
+  static void SetFxrProjectionMode(const GlobalObject& aGlobal,
+                                   const nsAString& aMode);
+
 };
 
 }  // namespace dom
