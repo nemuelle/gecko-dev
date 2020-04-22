@@ -15,6 +15,7 @@ browser.jar:
    content/browser/fxr/fxr-fullScreen.js        (content/fxr-fullScreen.js)
    content/browser/fxr/fxr-transport-controls.css     (content/fxr-transport-controls.css)
    content/browser/fxr/fxr-transport-controls.html    (content/fxr-transport-controls.html)
+   content/browser/fxr/fxr-transport-controls.js      (content/fxr-transport-controls.js)
    content/browser/fxr/permissions.js           (content/permissions.js)
    content/browser/fxr/prefs.html               (content/prefs.html)
    content/browser/fxr/prefs.css                (content/prefs.css)
