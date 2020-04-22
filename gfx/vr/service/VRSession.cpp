@@ -172,3 +172,12 @@ void VRSession::UpdateTrigger(VRControllerState& aState, uint32_t aButtonIndex,
 }
 
 bool VRSession::ShouldQuit() const { return mShouldQuit; }
+
+bool VRSession::StartPresentation(mozilla::gfx::VRSystemState& aSystemState) {
+  // TODO: Is this the best place to ensure that these values are reset
+  // before presenting?
+  aSystemState.controllerState[0].exitPresentStartFrameId = 0;
+  aSystemState.controllerState[0].exitPresentStopFrameId = 0;
+
+  return StartPresentation();
+}
