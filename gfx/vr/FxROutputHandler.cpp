@@ -9,6 +9,14 @@
 #include "VRShMem.h"
 #include "openvr.h"
 
+
+FxROutputHandler::FxROutputHandler(uint64_t aOverlayId)
+  : mOverlayId(aOverlayId) {
+  if (mOverlayId == 0) {
+    MOZ_CRASH("Invalid overlay ID");
+  }
+}
+
 // TryInitialize is responsible for associating this output handler with the
 // calling window's swapchain for subsequent updates.
 // See nsFxrCommandLineHandler::Handle for more information about the
