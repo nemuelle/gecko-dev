@@ -6426,7 +6426,7 @@ bool nsWindow::ProcessMessage(UINT msg, WPARAM& wParam, LPARAM& lParam,
     } break;
 
     case MOZ_WM_OPENVR_EVENT: {
-      FxRWindowManager::GetInstance()->ProcessOverlayEvents();
+      FxRWindowManager::GetInstance()->ProcessOverlayEvents(this);
       DispatchPendingEvents();
       break;
     }
