@@ -454,6 +454,7 @@ void nsWindow::CreateCompositor() {
 }
 
 void nsWindow::RequestFxrOutput(uint64_t aOverlayId) {
+  MOZ_ASSERT(aOverlayId != 0);
   if (GetRemoteRenderer() != nullptr) {
     MOZ_CRASH("RequestFxrOutput should happen before Compositor is created.");
   } else {
