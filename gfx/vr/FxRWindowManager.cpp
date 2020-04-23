@@ -5,6 +5,8 @@
 
 #include "FxRWindowManager.h"
 
+#include <service/openvr/src/pathtools_public.h>
+
 #include "mozilla/Assertions.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "base/platform_thread.h"
@@ -39,6 +41,7 @@ FxRWindowManager::FxRWindowManager()
 FxRWindowManager::~FxRWindowManager() {
   MOZ_ASSERT(mFxRWindow.mOverlayHandle == 0);
   MOZ_ASSERT(mOverlayPumpThread == nullptr);
+  MOZ_ASSERT(mFxRWindow.mTransportControlsOverlayHandle == 0);
 }
 
 // Initialize an instance of OpenVR for the window manager
@@ -95,6 +98,18 @@ void FxRWindowManager::RemoveWindow(uint64_t aOverlayId) {
       vr::VROverlay()->DestroyOverlay(mFxRWindow.mOverlayHandle);
   MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
+  if (mFxRWindow.mOverlayThumbnailHandle != 0) {
+    overlayError =
+        vr::VROverlay()->DestroyOverlay(mFxRWindow.mOverlayThumbnailHandle);
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+  }
+
+  if (mFxRWindow.mTransportControlsOverlayHandle != 0) {
+    overlayError = vr::VROverlay()->DestroyOverlay(
+        mFxRWindow.mTransportControlsOverlayHandle);
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+    mFxRWindow.mTransportControlsOverlayHandle = 0;
+  }
   ::DeleteCriticalSection(&mFxRWindow.mEventsCritSec);
 
   mFxRWindow.mWidget->Release();
@@ -158,6 +173,71 @@ bool FxRWindowManager::CreateOverlayForWindow() {
   } else {
     return true;
   }
+}
+
+vr::VROverlayError FxRWindowManager::CreateTransportControlsOverlay() {
+  std::string sKey = std::string("Firefox Reality Transport Controls");
+  vr::VROverlayError overlayError = vr::VROverlay()->CreateOverlay(
+      sKey.c_str(), sKey.c_str(), &mFxRWindow.mTransportControlsOverlayHandle);
+
+  // Place the transport controls just in front of the window
+  if (overlayError == vr::VROverlayError_None) {
+    vr::HmdMatrix34_t transform = {
+        1.0f, 0.0f, 0.0f, 0.0f,  // no move in x direction
+        0.0f, 1.0f, 0.0f, 1.0f,  // +y to move it up
+        0.0f, 0.0f, 1.0f, -1.0f  // -z to move it forward from the origin
+    };
+
+    overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+        mFxRWindow.mTransportControlsOverlayHandle,
+        vr::TrackingUniverseStanding, &transform);
+    if (overlayError == vr::VROverlayError_None) {
+      // Use placeholder image for the transport controls overlay
+      std::string overlayImagePath =
+          Path_StripFilename(Path_GetExecutablePath())
+              .append(
+                  "\\browser\\chrome\\browser\\content\\branding\\about.png");
+
+      overlayError = vr::VROverlay()->SetOverlayFromFile(
+          mFxRWindow.mTransportControlsOverlayHandle, overlayImagePath.c_str());
+      if (overlayError == vr::VROverlayError_None) {
+        overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
+            mFxRWindow.mTransportControlsOverlayHandle, 0.5f);
+        if (overlayError == vr::VROverlayError_None) {
+          overlayError = vr::VROverlay()->SetOverlayFlag(
+              mFxRWindow.mTransportControlsOverlayHandle,
+              vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible, true);
+
+          if (overlayError == vr::VROverlayError_None) {
+            overlayError = vr::VROverlay()->SetOverlayInputMethod(
+                mFxRWindow.mTransportControlsOverlayHandle,
+                vr::VROverlayInputMethod_Mouse);
+
+            if (overlayError == vr::VROverlayError_None) {
+              // Finally, show the prepared overlay
+              overlayError = vr::VROverlay()->ShowOverlay(
+                  mFxRWindow.mTransportControlsOverlayHandle);
+              MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+              if (overlayError == vr::VROverlayError_None) {
+                // Now, start listening for input...
+                overlayError = SetupOverlayInput(
+                    mFxRWindow.mTransportControlsOverlayHandle);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (overlayError != vr::VROverlayError_None) {
+    vr::VROverlayError destroyError = vr::VROverlay()->DestroyOverlay(
+        mFxRWindow.mTransportControlsOverlayHandle);
+    MOZ_ASSERT(destroyError == vr::VROverlayError_None);
+    mFxRWindow.mTransportControlsOverlayHandle = 0;
+  }
+  return overlayError;
 }
 
 vr::VROverlayError FxRWindowManager::SetupOverlayInput(
@@ -252,6 +332,16 @@ void FxRWindowManager::CollectOverlayEvents() {
     }
   }
 
+  if (mFxRWindow.mTransportControlsOverlayHandle != 0) {
+    while (vr::VROverlay()->PollNextOverlayEvent(
+        mFxRWindow.mTransportControlsOverlayHandle, &vrEvent,
+        sizeof(vrEvent))) {
+      if (vrEvent.eventType == vr::VREvent_MouseButtonDown) {
+        ToggleProjectionMode();
+        break;
+      }
+    }
+  }
   // Post message to UI thread that new events are waiting
   // TODO: cross-plat notification
   if (initiallyEmpty && !mFxRWindow.mEventsVector.empty()) {
@@ -280,6 +370,7 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
   bool isStereoPanorama = false;
   bool isStereo2D = false;
   vr::VROverlayError overlayError = vr::VROverlayError_None;
+
   switch (projectionMode) {
     case (FxRProjectionMode::VIDEO_PROJECTION_360): {
       isPanorama = true;
@@ -300,7 +391,7 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
     vr::HmdMatrix34_t transform = {
         1.0f, 0.0f, 0.0f, 0.0f,  // no move in x direction
         0.0f, 1.0f, 0.0f, 0.0f,  // +y to move it up
-        0.0f, 0.0f, 1.0f, -1.0f  // -z to move it forward from the origin
+        0.0f, 0.0f, 1.0f, -1.5f  // -z to move it forward from the origin
     };
     // Keep the content centered at user's head
     overlayError = vr::VROverlay()->SetOverlayTransformTrackedDeviceRelative(
@@ -378,12 +469,10 @@ void FxRWindowManager::ProcessOverlayEvents() {
       case vr::VREvent_MouseButtonDown: {
         vr::VREvent_Mouse_t data = iter->data.mouse;
 
-        if (eventType == vr::VREvent_MouseButtonDown
-          || eventType == vr::VREvent_MouseButtonUp) {
-          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
-            "VREvent_Mouse_t.button: %u",
-            data.button
-            ));
+        if (eventType == vr::VREvent_MouseButtonDown ||
+            eventType == vr::VREvent_MouseButtonUp) {
+          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+                  ("VREvent_Mouse_t.button: %u", data.button));
         }
 
         // Windows' origin is top-left, whereas OpenVR's origin is
@@ -396,24 +485,21 @@ void FxRWindowManager::ProcessOverlayEvents() {
           mozilla::EventMessage eMsg;
           if (eventType == vr::VREvent_MouseMove) {
             eMsg = mozilla::EventMessage::eMouseMove;
-          }
-          else if (eventType == vr::VREvent_MouseButtonDown) {
+          } else if (eventType == vr::VREvent_MouseButtonDown) {
             eMsg = mozilla::EventMessage::eMouseDown;
-          }
-          else {
+          } else {
             MOZ_ASSERT(eventType == vr::VREvent_MouseButtonUp);
             eMsg = mozilla::EventMessage::eMouseUp;
           }
 
           window->DispatchMouseEvent(
-            eMsg,
-            0,                                      // wParam
-            POINTTOPOINTS(mFxRWindow.mLastMousePt)  // lParam
+              eMsg,
+              0,                                      // wParam
+              POINTTOPOINTS(mFxRWindow.mLastMousePt)  // lParam
           );
-        }
-        else if (eventType == vr::VREvent_MouseButtonUp) {
-          // When the 2nd button is released, toggle the currently playing media.
-          // Add a check to see if FullScreen + 360 video is active
+        } else if (eventType == vr::VREvent_MouseButtonUp) {
+          // When the 2nd button is released, toggle the currently playing
+          // media. Add a check to see if FullScreen + 360 video is active
           ToggleMedia();
         }
 
@@ -424,10 +510,8 @@ void FxRWindowManager::ProcessOverlayEvents() {
       case vr::VREvent_ButtonUnpress: {
         vr::VREvent_Controller_t data = iter->data.controller;
 
-        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
-          "VREvent_Controller_t.button: %u",
-          data.button
-          ));
+        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+                ("VREvent_Controller_t.button: %u", data.button));
 
         break;
       }
@@ -599,21 +683,32 @@ void FxRWindowManager::OnWebXRPresentationChange(uint64_t aOuterWindowID,
 
 vr::VROverlayError FxRWindowManager::OnFullScreenChange(bool aIsFullScreen) {
   if (aIsFullScreen) {
+    // Create the transport controls overlay
+    vr::VROverlayError overlayError = CreateTransportControlsOverlay();
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
     return ChangeProjectionMode(VIDEO_PROJECTION_360);
   } else {
+    // Close the transport controls overlay
+    vr::VROverlayError overlayError = vr::VROverlay()->DestroyOverlay(
+        mFxRWindow.mTransportControlsOverlayHandle);
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+    mFxRWindow.mTransportControlsOverlayHandle = 0;
     return ChangeProjectionMode(VIDEO_PROJECTION_2D);
   }
 }
 
 void FxRWindowManager::ToggleMedia() {
-  RefPtr<mozilla::dom::MediaControlService> service = mozilla::dom::MediaControlService::GetService();
-  mozilla::dom::MediaControlKeysEventSource* source = service->GetMediaControlKeysEventSource();
+  RefPtr<mozilla::dom::MediaControlService> service =
+      mozilla::dom::MediaControlService::GetService();
+  mozilla::dom::MediaControlKeysEventSource* source =
+      service->GetMediaControlKeysEventSource();
   mozilla::dom::PlaybackState state = source->GetPlaybackState();
 
   if (state == mozilla::dom::PlaybackState::ePlaying) {
-    service->GetMediaControlKeysEventSource()->OnKeyPressed(mozilla::dom::MediaControlKeysEvent::ePause);
-  }
-  else {
-    service->GetMediaControlKeysEventSource()->OnKeyPressed(mozilla::dom::MediaControlKeysEvent::ePlay);
+    service->GetMediaControlKeysEventSource()->OnKeyPressed(
+        mozilla::dom::MediaControlKeysEvent::ePause);
+  } else {
+    service->GetMediaControlKeysEventSource()->OnKeyPressed(
+        mozilla::dom::MediaControlKeysEvent::ePlay);
   }
 }
