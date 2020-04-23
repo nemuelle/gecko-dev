@@ -94,7 +94,6 @@ nsFxrCommandLineHandler::Handle(nsICommandLine* aCmdLine) {
     MOZ_ASSERT(result == NS_OK);
 
     if (FxRWindowManager::GetInstance()->VRinit()) {
-
       nsPIDOMWindowOuter* newWindowOuter = nsPIDOMWindowOuter::From(newWindow);
       if (FxRWindowManager::GetInstance()->AddWindow(newWindowOuter)) {
         // Set ForceFullScreenInWidget so that full-screen (in an FxR window)
@@ -102,13 +101,6 @@ nsFxrCommandLineHandler::Handle(nsICommandLine* aCmdLine) {
         // shared with the host. Also, this is set here per-window because
         // changing the related pref would impact all browser window instances.
         newWindowOuter->ForceFullScreenInWidget();
-
-
-        // Associate this new window with this new OpenVR overlay for output
-        // rendering
-        nsCOMPtr<nsIWidget> newWidget =
-          mozilla::widget::WidgetUtils::DOMWindowToWidget(newWindowOuter);
-        newWidget->RequestFxrOutput(FxRWindowManager::GetInstance()->GetOverlayId());
       }
       else {
         MOZ_ASSERT(false, "Failed to create Overlay for FxR");
