@@ -11,6 +11,7 @@
 #include "mozilla/ClearOnShutdown.h"
 #include "base/platform_thread.h"
 
+#include "nsIWindowWatcher.h"
 #include "nsPIDOMWindow.h"
 #include "nsWindow.h"
 #include "nsIDOMWindowUtils.h"
@@ -31,12 +32,14 @@ FxRWindowManager* FxRWindowManager::GetInstance() {
   return sFxrWinMgrInstance;
 }
 
-FxRWindowManager::FxRWindowManager()
-    : mVrApp(nullptr),
-      mDxgiAdapterIndex(-1),
-      mIsOverlayPumpActive(false),
-      mOverlayPumpThread(nullptr),
-      mFxRWindow({0}) {}
+FxRWindowManager::FxRWindowManager() :
+  mVrApp(nullptr),
+  mDxgiAdapterIndex(-1),
+  mIsOverlayPumpActive(false),
+  mOverlayPumpThread(nullptr),
+  mFxRWindow({ 0 }),
+  mTransportWindow({ 0 })
+{ }
 
 FxRWindowManager::~FxRWindowManager() {
   MOZ_ASSERT(mFxRWindow.mOverlayHandle == 0);
@@ -64,19 +67,31 @@ bool FxRWindowManager::AddWindow(nsPIDOMWindowOuter* aWindow) {
     MOZ_CRASH("Only one window is supported");
   }
 
-  mFxRWindow.mWindow = aWindow;
+  InitWindow(mFxRWindow, aWindow);
+
+  bool created = CreateOverlayForWindow(mFxRWindow, "Firefox Reality", 4.0f);
+  if (created) {
+    // Associate this new window with this new OpenVR overlay for output
+    // rendering
+    nsCOMPtr<nsIWidget> newWidget =
+      mozilla::widget::WidgetUtils::DOMWindowToWidget(mFxRWindow.mWindow);
+    newWidget->RequestFxrOutput(mFxRWindow.mOverlayHandle);
+  }
+
+  return created;
+}
+
+void FxRWindowManager::InitWindow(FxRWindowManager::FxRWindow& newWindow, nsPIDOMWindowOuter* aWindow) {
+  MOZ_ASSERT(newWindow.mWindow == nullptr);
+  newWindow.mWindow = aWindow;
 
   // This full reference is released when the window is removed
-  mFxRWindow.mWidget =
-      mozilla::widget::WidgetUtils::DOMWindowToWidget(mFxRWindow.mWindow)
-          .take();
+  newWindow.mWidget =
+    mozilla::widget::WidgetUtils::DOMWindowToWidget(newWindow.mWindow).take();
 
-  mFxRWindow.mHwndWidget =
-      (HWND)mFxRWindow.mWidget->GetNativeData(NS_NATIVE_WINDOW);
+  newWindow.mHwndWidget = (HWND)newWindow.mWidget->GetNativeData(NS_NATIVE_WINDOW);
 
-  ::InitializeCriticalSection(&mFxRWindow.mEventsCritSec);
-
-  return CreateOverlayForWindow();
+  ::InitializeCriticalSection(&newWindow.mEventsCritSec);
 }
 
 void FxRWindowManager::RemoveWindow(uint64_t aOverlayId) {
@@ -94,72 +109,104 @@ void FxRWindowManager::RemoveWindow(uint64_t aOverlayId) {
     mOverlayPumpThread = nullptr;
   }
 
-  vr::VROverlayError overlayError =
-      vr::VROverlay()->DestroyOverlay(mFxRWindow.mOverlayHandle);
+  CleanupWindow(mFxRWindow);
+
+  // Since only one browser window is supported, close and cleanup the
+  // transport window as well because there is no reason for it to be
+  // available after the browser window is cleaned up.
+  mTransportWindow.mWindow->Close();
+  CleanupWindow(mTransportWindow);
+}
+
+void FxRWindowManager::CleanupWindow(FxRWindowManager::FxRWindow& fxrWindow) {
+  vr::VROverlayError overlayError = vr::VROverlay()->DestroyOverlay(
+    fxrWindow.mOverlayHandle
+  );
   MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
-  if (mFxRWindow.mOverlayThumbnailHandle != 0) {
-    overlayError =
-        vr::VROverlay()->DestroyOverlay(mFxRWindow.mOverlayThumbnailHandle);
-    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
-  }
+  ::DeleteCriticalSection(&fxrWindow.mEventsCritSec);
 
-  if (mFxRWindow.mTransportControlsOverlayHandle != 0) {
-    overlayError = vr::VROverlay()->DestroyOverlay(
-        mFxRWindow.mTransportControlsOverlayHandle);
-    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
-    mFxRWindow.mTransportControlsOverlayHandle = 0;
-  }
-  ::DeleteCriticalSection(&mFxRWindow.mEventsCritSec);
-
-  mFxRWindow.mWidget->Release();
+  fxrWindow.mWidget->Release();
 
   // Now, clear the state so that another window can be created later
-  mFxRWindow = {0};
+  fxrWindow = { 0 };
+}
+
+FxRWindowManager::FxRWindow& FxRWindowManager::GetFxrWindowFromWidget(nsIWidget* widget) {
+  if (mFxRWindow.mWidget == widget) {
+    return mFxRWindow;
+  }
+  else if (mTransportWindow.mWidget == widget) {
+    return mTransportWindow;
+  }
+  else {
+    MOZ_CRASH("Unknown widget");
+  }
 }
 
 void FxRWindowManager::SetRenderPid(uint64_t aOverlayId, uint32_t aPid) {
-  if (aOverlayId != mFxRWindow.mOverlayHandle) {
+  if (aOverlayId != mFxRWindow.mOverlayHandle && aOverlayId != mTransportWindow.mOverlayHandle) {
     MOZ_CRASH("Unexpected Overlay ID");
   }
 
-  vr::VROverlayError error =
-      vr::VROverlay()->SetOverlayRenderingPid(mFxRWindow.mOverlayHandle, aPid);
+  vr::VROverlayError error = vr::VROverlay()->SetOverlayRenderingPid(
+    aOverlayId,
+    aPid
+  );
   MOZ_ASSERT(error == vr::VROverlayError_None);
 }
 
-bool FxRWindowManager::CreateOverlayForWindow() {
-  std::string sKey = std::string("Firefox Reality");
+bool FxRWindowManager::CreateOverlayForWindow(
+  FxRWindow& newWindow, char* name, float width) {
+  std::string sKey = std::string(name);
   vr::VROverlayError overlayError = vr::VROverlay()->CreateOverlay(
-      sKey.c_str(), sKey.c_str(), &mFxRWindow.mOverlayHandle);
+    sKey.c_str(),
+    sKey.c_str(),
+    &newWindow.mOverlayHandle
+  );
 
   if (overlayError == vr::VROverlayError_None) {
     // Start with default width of 4m
     overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-        mFxRWindow.mOverlayHandle, 4.0f);
+      newWindow.mOverlayHandle,
+      width
+    );
 
     if (overlayError == vr::VROverlayError_None) {
-      // Set up the projection as a simple 2D window to start
-      overlayError =
-          ChangeProjectionMode(FxRProjectionMode::VIDEO_PROJECTION_2D);
+      // Set the transform for the overlay position
+      vr::HmdMatrix34_t transform = {
+        1.0f, 0.0f, 0.0f,  0.0f, // no move in x direction
+        0.0f, 1.0f, 0.0f,  2.0f, // +y to move it up
+        0.0f, 0.0f, 1.0f, -2.0f  // -z to move it forward from the origin
+      };
+      overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+        newWindow.mOverlayHandle,
+        vr::TrackingUniverseStanding,
+        &transform
+      );
+
       if (overlayError == vr::VROverlayError_None) {
         overlayError = vr::VROverlay()->SetOverlayFlag(
-            mFxRWindow.mOverlayHandle,
-            vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible, true);
+          newWindow.mOverlayHandle,
+          vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible,
+          true);
 
         if (overlayError == vr::VROverlayError_None) {
           overlayError = vr::VROverlay()->SetOverlayInputMethod(
-              mFxRWindow.mOverlayHandle, vr::VROverlayInputMethod_Mouse);
+            newWindow.mOverlayHandle,
+            vr::VROverlayInputMethod_Mouse
+          );
 
           if (overlayError == vr::VROverlayError_None) {
             // Finally, show the prepared overlay
-            overlayError =
-                vr::VROverlay()->ShowOverlay(mFxRWindow.mOverlayHandle);
+            overlayError = vr::VROverlay()->ShowOverlay(
+              newWindow.mOverlayHandle
+            );
             MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
             if (overlayError == vr::VROverlayError_None) {
               // Now, start listening for input...
-              overlayError = SetupOverlayInput(mFxRWindow.mOverlayHandle);
+              overlayError = SetupOverlayInput(newWindow.mOverlayHandle);
             }
           }
         }
@@ -168,7 +215,7 @@ bool FxRWindowManager::CreateOverlayForWindow() {
   }
 
   if (overlayError != vr::VROverlayError_None) {
-    RemoveWindow(mFxRWindow.mOverlayHandle);
+    RemoveWindow(newWindow.mOverlayHandle);
     return false;
   } else {
     return true;
@@ -265,7 +312,10 @@ DWORD FxRWindowManager::OverlayInputPump(_In_ LPVOID lpParameter) {
           ("FxRWindowManager:OverlayInputPump started (%llX)", manager));
 
   while (manager->mIsOverlayPumpActive) {
-    manager->CollectOverlayEvents();
+    manager->CollectOverlayEvents(manager->mFxRWindow);
+    if (manager->mTransportWindow.mOverlayHandle != 0) {
+      manager->CollectOverlayEvents(manager->mTransportWindow);
+    }
     // Yield the thread
     ::Sleep(0);
   }
@@ -282,7 +332,7 @@ DWORD FxRWindowManager::OverlayInputPump(_In_ LPVOID lpParameter) {
 // from another thread (need to confirm), collect OpenVR input events in
 // m_rgEvents on this background thread and post a message (MOZ_WM_OPENVR_EVENT)
 // that events are ready for UI thread/widget.
-void FxRWindowManager::CollectOverlayEvents() {
+void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
   // Need to find a better place to put this. The problem that needs to be
   // solved is knowing the texture size so that mouse coords can be translated
   // late. This is put in this function because it won't block the UI thread.
@@ -290,25 +340,26 @@ void FxRWindowManager::CollectOverlayEvents() {
   // - if == 0, then uninitialized
   // - if == 1, then mousescale hasn't been set by GPU process yet (default
   // normalizes to 1.0f)
-  if (mFxRWindow.mOverlaySizeRec.right <= 1) {
-    vr::HmdVector2_t vecWindowSize = {0};
+  if (fxrWindow.mOverlaySizeRec.right <= 1) {
+    vr::HmdVector2_t vecWindowSize = { 0 };
     vr::EVROverlayError error = vr::VROverlay()->GetOverlayMouseScale(
-        mFxRWindow.mOverlayHandle, &vecWindowSize);
+      fxrWindow.mOverlayHandle, &vecWindowSize);
 
     MOZ_ASSERT(error == vr::VROverlayError_None);
-    mFxRWindow.mOverlaySizeRec.right = vecWindowSize.v[0];
-    mFxRWindow.mOverlaySizeRec.bottom = vecWindowSize.v[1];
+    fxrWindow.mOverlaySizeRec.right = vecWindowSize.v[0];
+    fxrWindow.mOverlaySizeRec.bottom = vecWindowSize.v[1];
   }
 
   // Acquire CS
-  ::EnterCriticalSection(&mFxRWindow.mEventsCritSec);
+  ::EnterCriticalSection(&fxrWindow.mEventsCritSec);
 
-  bool initiallyEmpty = mFxRWindow.mEventsVector.empty();
+  bool initiallyEmpty = fxrWindow.mEventsVector.empty();
 
   // Add events to vector
   vr::VREvent_t vrEvent;
-  while (vr::VROverlay()->PollNextOverlayEvent(mFxRWindow.mOverlayHandle,
-                                               &vrEvent, sizeof(vrEvent))) {
+  while (vr::VROverlay()->PollNextOverlayEvent(fxrWindow.mOverlayHandle, &vrEvent,
+    sizeof(vrEvent))) {
+
     if (vrEvent.eventType != vr::VREvent_MouseMove) {
       MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
               ("VREvent_t.eventType: %s",
@@ -324,7 +375,7 @@ void FxRWindowManager::CollectOverlayEvents() {
       case vr::VREvent_ButtonUnpress:
       case vr::VREvent_KeyboardCharInput:
       case vr::VREvent_OverlayFocusChanged: {
-        mFxRWindow.mEventsVector.emplace_back(vrEvent);
+        fxrWindow.mEventsVector.emplace_back(vrEvent);
         break;
       }
       default:
@@ -344,11 +395,11 @@ void FxRWindowManager::CollectOverlayEvents() {
   }
   // Post message to UI thread that new events are waiting
   // TODO: cross-plat notification
-  if (initiallyEmpty && !mFxRWindow.mEventsVector.empty()) {
-    PostMessage(mFxRWindow.mHwndWidget, MOZ_WM_OPENVR_EVENT, 0, 0);
+  if (initiallyEmpty && !fxrWindow.mEventsVector.empty()) {
+    PostMessage(fxrWindow.mHwndWidget, MOZ_WM_OPENVR_EVENT, 0, 0);
   }
 
-  ::LeaveCriticalSection(&mFxRWindow.mEventsCritSec);
+  ::LeaveCriticalSection(&fxrWindow.mEventsCritSec);
 }
 
 void FxRWindowManager::ToggleProjectionMode() {
@@ -437,27 +488,26 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
 // Runs on UI thread (for reasons explained with CollectOverlayEvents).
 // Copies OpenVR events that were collected on background thread and converts
 // them to UI events to be dispatched by the widget.
-void FxRWindowManager::ProcessOverlayEvents() {
+void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
   VREventVector rgEvents;
   // See note above SynthesizeNativeMouseScrollEvent for reasoning
   bool hasScrolled = false;
 
+  FxRWindow& fxrWindow = GetFxrWindowFromWidget(window);
+  
   // Acquire CS
-  ::EnterCriticalSection(&mFxRWindow.mEventsCritSec);
+  ::EnterCriticalSection(&fxrWindow.mEventsCritSec);
 
   // Copy elements to stack vector to minimize CritSec acquisition
-  mFxRWindow.mEventsVector.swap(rgEvents);
+  fxrWindow.mEventsVector.swap(rgEvents);
 
   // Clear vector
-  mFxRWindow.mEventsVector.clear();
+  fxrWindow.mEventsVector.clear();
 
-  ::LeaveCriticalSection(&mFxRWindow.mEventsCritSec);
-
+  ::LeaveCriticalSection(&fxrWindow.mEventsCritSec);
+  
   // Assert size > 0
   MOZ_ASSERT(!rgEvents.empty());
-
-  // TODO: Confirm this is a supported way to get the nsWindow from the widget
-  nsWindow* window = static_cast<nsWindow*>(mFxRWindow.mWidget);
 
   // Process events
   for (auto iter = rgEvents.begin(); iter != rgEvents.end(); iter++) {
@@ -477,9 +527,9 @@ void FxRWindowManager::ProcessOverlayEvents() {
 
         // Windows' origin is top-left, whereas OpenVR's origin is
         // bottom-left, so transform the y-coordinate.
-        mFxRWindow.mLastMousePt.x = (LONG)(data.x);
-        mFxRWindow.mLastMousePt.y =
-            mFxRWindow.mOverlaySizeRec.bottom - (LONG)(data.y);
+        fxrWindow.mLastMousePt.x = (LONG)(data.x);
+        fxrWindow.mLastMousePt.y =
+          fxrWindow.mOverlaySizeRec.bottom - (LONG)(data.y);
 
         if (data.button != vr::EVRMouseButton::VRMouseButton_Right) {
           mozilla::EventMessage eMsg;
@@ -493,15 +543,15 @@ void FxRWindowManager::ProcessOverlayEvents() {
           }
 
           window->DispatchMouseEvent(
-              eMsg,
-              0,                                      // wParam
-              POINTTOPOINTS(mFxRWindow.mLastMousePt)  // lParam
+            eMsg,
+            0,                                      // wParam
+            POINTTOPOINTS(fxrWindow.mLastMousePt)  // lParam
           );
         }
         else if (eventType == vr::VREvent_MouseButtonUp) {
-          // When the 2nd button is released, toggle the currently playing media.
+          // When the 2nd button is released, show the transport controls.
           // TODO: Add a check to see if FullScreen + 360 video is active
-          ToggleMedia();
+          EnsureTransportControls();
         }
 
         break;
@@ -531,8 +581,8 @@ void FxRWindowManager::ProcessOverlayEvents() {
           // support multiple synthesized events (i.e., needs a call to Finish),
           // only one can be processed at a time in this message loop
           mozilla::LayoutDeviceIntPoint pt;
-          pt.x = mFxRWindow.mLastMousePt.x;
-          pt.y = mFxRWindow.mLastMousePt.y;
+          pt.x = fxrWindow.mLastMousePt.x;
+          pt.y = fxrWindow.mLastMousePt.y;
 
           mozilla::widget::MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
               window, pt, WM_MOUSEWHEEL, scrollDelta,
@@ -579,11 +629,11 @@ void FxRWindowManager::ProcessOverlayEvents() {
           case VK_RETURN:
           case VK_ESCAPE: {
             MSG nativeMsgDown = mozilla::widget::WinUtils::InitMSG(
-                WM_KEYDOWN, msgChar, 0, mFxRWindow.mHwndWidget);
+              WM_KEYDOWN, msgChar, 0, fxrWindow.mHwndWidget);
             window->ProcessKeyDownMessage(nativeMsgDown, nullptr);
 
             MSG nativeMsgUp = mozilla::widget::WinUtils::InitMSG(
-                WM_KEYUP, msgChar, 0, mFxRWindow.mHwndWidget);
+              WM_KEYUP, msgChar, 0, fxrWindow.mHwndWidget);
             window->ProcessKeyUpMessage(nativeMsgUp, nullptr);
 
             break;
@@ -591,7 +641,7 @@ void FxRWindowManager::ProcessOverlayEvents() {
 
           default: {
             MSG nativeMsg = mozilla::widget::WinUtils::InitMSG(
-                WM_CHAR, msgChar, 0, mFxRWindow.mHwndWidget);
+              WM_CHAR, msgChar, 0, fxrWindow.mHwndWidget);
 
             window->ProcessCharMessage(nativeMsg, nullptr);
             break;
@@ -610,7 +660,7 @@ void FxRWindowManager::ProcessOverlayEvents() {
 
         vr::VREvent_Overlay_t data = iter->data.overlay;
 
-        bool isFocused = data.overlayHandle == mFxRWindow.mOverlayHandle;
+        bool isFocused = data.overlayHandle == fxrWindow.mOverlayHandle;
 
         MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
                 ("Overlay focus: %s", isFocused ? "true" : "false"));
@@ -643,10 +693,6 @@ void FxRWindowManager::HideVirtualKeyboard() {
   vr::VROverlay()->HideKeyboard();
 }
 
-uint64_t FxRWindowManager::GetOverlayId() const {
-  return mFxRWindow.mOverlayHandle;
-}
-
 // Returns true if the window at the provided ID was created for Firefox Reality
 bool FxRWindowManager::IsFxRWindow(uint64_t aOuterWindowID) {
   return (mFxRWindow.mWindow != nullptr) &&
@@ -659,11 +705,6 @@ bool FxRWindowManager::IsFxRWindow(const nsWindow* aWindow) const {
          (aWindow ==
           mozilla::widget::WidgetUtils::DOMWindowToWidget(mFxRWindow.mWindow)
               .take());
-}
-
-uint64_t FxRWindowManager::GetWindowID() const {
-  MOZ_ASSERT(mFxRWindow.mWindow);
-  return mFxRWindow.mWindow->WindowID();
 }
 
 // Handle when WebVR/XR content is showing or not, so that both the FxR Overlay
@@ -735,5 +776,54 @@ void FxRWindowManager::SetProjectionMode(const nsAString& aMode) {
   MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
     "FxRWindowManager::SetProjectionMode - %s",
     NS_ConvertUTF16toUTF8(aMode).Data()
+    ));
+}
+
+void FxRWindowManager::EnsureTransportControls() {
+  // Setup the window if it doesn't already exist
+  if (mTransportWindow.mOverlayHandle == 0) {
+    nsCOMPtr<nsIWindowWatcher> wwatch =
+      do_GetService(NS_WINDOWWATCHER_CONTRACTID);
+    MOZ_ASSERT(wwatch != nullptr, "Failed to get WindowWatcher");
+    
+    nsCOMPtr<mozIDOMWindowProxy> newDOMWindow;
+    nsresult result = wwatch->OpenWindow(
+      nullptr,                            // aParent
+      "chrome://fxr/content/fxr-transport-controls.html",  // aUrl
+      "_blank",                           // aName
+      "chrome,dialog=no,all",             // aFeatures
+      nullptr,  // aArguments
+      getter_AddRefs(newDOMWindow));
+    MOZ_ASSERT(result == NS_OK);
+
+    nsPIDOMWindowOuter* newWindowOuter = nsPIDOMWindowOuter::From(newDOMWindow);
+    InitWindow(mTransportWindow, newWindowOuter);
+
+    if (CreateOverlayForWindow(mTransportWindow, "Firefox Reality Transport Controls", 1.0f)) {
+      nsCOMPtr<nsIWidget> newWidget =
+        mozilla::widget::WidgetUtils::DOMWindowToWidget(newWindowOuter);
+      newWidget->RequestFxrOutput(mTransportWindow.mOverlayHandle);
+
+      // Set the transform for the overlay position
+      vr::HmdMatrix34_t transform = {
+        1.0f, 0.0f, 0.0f,  0.0f, // no move in x direction
+        0.0f, 1.0f, 0.0f,  0.9f, // +y to move it up
+        0.0f, 0.0f, 1.0f, -1.9f  // -z to move it forward from the origin
+      };
+      vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+        mTransportWindow.mOverlayHandle,
+        vr::TrackingUniverseStanding,
+        &transform
+      );
+      MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+    }
+  }
+}
+
+void FxRWindowManager::HideTransportControls() {
+  MOZ_ASSERT(mTransportWindow.mOverlayHandle != 0);
+  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, (
+    "FxRWindowManager::HideTransportControls",
+    nullptr
     ));
 }
