@@ -45,6 +45,7 @@ class FxRWindowManager final {
 
   bool VRinit();
   bool CreateOverlayForWindow();
+  vr::VROverlayError CreateTransportControlsOverlay();
   void SetRenderPid(uint64_t aOverlayId, uint32_t aPid);
   uint64_t GetOverlayId() const;
 
@@ -94,7 +95,8 @@ class FxRWindowManager final {
     nsIWidget* mWidget;
     nsPIDOMWindowOuter* mWindow;
     vr::VROverlayHandle_t mOverlayHandle;
-    vr::VROverlayHandle_t mOverlayThumbnailHandle;
+	vr::VROverlayHandle_t mTransportControlsOverlayHandle;
+	vr::VROverlayHandle_t mOverlayThumbnailHandle;
     HWND mHwndWidget;
 
     // Works with Collect/ProcessOverlayEvents to transfer OpenVR input events
