@@ -206,6 +206,12 @@ class ChromeUtils {
   // This function would only be used for testing.
   static void GetCurrentActiveMediaMetadata(const GlobalObject& aGlobal,
                                             MediaMetadataInit& aMetadata);
+
+  static void SetFxrPlayMediaState(const GlobalObject& aGlobal,
+                                   const nsAString& aState);
+  static void SetFxrProjectionMode(const GlobalObject& aGlobal,
+                                   const nsAString& aMode);
+
 };
 
 }  // namespace dom
