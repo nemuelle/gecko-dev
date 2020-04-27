@@ -733,6 +733,10 @@ void FxRWindowManager::EnsureTransportControls() {
               &transform);
       MOZ_ASSERT(overlayError == vr::VROverlayError_None);
     }
+  } else {
+    vr::VROverlayError overlayError =
+        vr::VROverlay()->ShowOverlay(mTransportWindow.mOverlayHandle);
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
   }
 }
 
@@ -740,4 +744,7 @@ void FxRWindowManager::HideTransportControls() {
   MOZ_ASSERT(mTransportWindow.mOverlayHandle != 0);
   MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
           ("FxRWindowManager::HideTransportControls", nullptr));
+  vr::VROverlayError overlayError =
+      vr::VROverlay()->HideOverlay(mTransportWindow.mOverlayHandle);
+  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 }
