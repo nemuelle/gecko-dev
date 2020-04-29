@@ -114,8 +114,10 @@ void FxRWindowManager::RemoveWindow(uint64_t aOverlayId) {
   // Since only one browser window is supported, close and cleanup the
   // transport window as well because there is no reason for it to be
   // available after the browser window is cleaned up.
-  mTransportWindow.mWindow->Close();
-  CleanupWindow(mTransportWindow);
+  if (mTransportWindow.mOverlayHandle != 0) {
+	  mTransportWindow.mWindow->Close();
+	  CleanupWindow(mTransportWindow);
+  }
 }
 
 void FxRWindowManager::CleanupWindow(FxRWindowManager::FxRWindow& fxrWindow) {
