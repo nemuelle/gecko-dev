@@ -4650,9 +4650,9 @@ nsresult nsGlobalWindowOuter::SetFullscreenInternal(FullscreenReason aReason,
 
 #if defined(XP_WIN)
   if (FxRWindowManager::GetInstance()->IsFxRWindow(mWindowID)) {
-    FxRWindowManager::GetInstance()->OnFullScreenChange(aFullscreen);
+    FxRWindowManager::GetInstance()->OnFullScreenChange(mWindowID, aFullscreen);
   }
-#endif  // NIGHTLY_BUILD && XP_WIN
+#endif  // XP_WIN
   FinishFullscreenChange(aFullscreen);
   return NS_OK;
 }
