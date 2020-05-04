@@ -37,10 +37,10 @@ enum FxRProjectionMode {
 // the top-level windows created for Firefox Reality on Desktop. Only a
 // single window is initially supported.
 class FxRWindowManager final {
- // TODO: make this a class, and move methods from the manager that only
- // interact with struct members to this class (i.e., some of the static
- // functions that take an FxRWindow
  private:
+  // TODO: make this a class, and move methods from the manager that only
+  // interact with struct members to this class (i.e., some of the static
+  // functions that take an FxRWindow
   struct FxRWindow {
     // Note: mWidget takes a full reference
     nsIWidget* mWidget;
@@ -87,15 +87,12 @@ class FxRWindowManager final {
   void SetPlayMediaState(const nsAString& aState);
   void SetProjectionMode(const nsAString& aMode);
 
-  void ProcessOverlayEvents();
-
-  vr::VROverlayError ChangeProjectionMode(FxRProjectionMode projectionMode);
-
  private:
   static void InitWindow(FxRWindow& newWindow, nsPIDOMWindowOuter* aWindow);
   static void CleanupWindow(FxRWindow& fxrWindow);
-  FxRWindow& GetFxrWindowFromWidget(nsIWidget* widget);  
-  bool CreateOverlayForWindow(FxRWindow& newWindow, const char* name, float width);
+  FxRWindow& GetFxrWindowFromWidget(nsIWidget* widget);
+  bool CreateOverlayForWindow(FxRWindow& newWindow, const char* name,
+                              float width);
 
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
   static DWORD OverlayInputPump(_In_ LPVOID lpParameter);
@@ -115,8 +112,9 @@ class FxRWindowManager final {
   FxRWindowManager();
 
   vr::VROverlayError ChangeProjectionMode(FxRProjectionMode projectionMode);
-  void ToggleProjectionMode();  
+  void ToggleProjectionMode();
 
+  // Members for OpenVR
   vr::IVRSystem* mVrApp;
   int32_t mDxgiAdapterIndex;
 
