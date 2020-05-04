@@ -527,41 +527,7 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
       case vr::VREvent_MouseButtonDown: {
         vr::VREvent_Mouse_t data = iter->data.mouse;
 
-        if (eventType == vr::VREvent_MouseButtonDown ||
-            eventType == vr::VREvent_MouseButtonUp) {
-          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
-                  ("VREvent_Mouse_t.button: %u", data.button));
-        }
-
-        // Windows' origin is top-left, whereas OpenVR's origin is
-        // bottom-left, so transform the y-coordinate.
-        fxrWindow.mLastMousePt.x = (LONG)(data.x);
-        fxrWindow.mLastMousePt.y =
-          fxrWindow.mOverlaySizeRec.bottom - (LONG)(data.y);
-
-        if (data.button != vr::EVRMouseButton::VRMouseButton_Right) {
-          mozilla::EventMessage eMsg;
-          if (eventType == vr::VREvent_MouseMove) {
-            eMsg = mozilla::EventMessage::eMouseMove;
-          } else if (eventType == vr::VREvent_MouseButtonDown) {
-            eMsg = mozilla::EventMessage::eMouseDown;
-          } else {
-            MOZ_ASSERT(eventType == vr::VREvent_MouseButtonUp);
-            eMsg = mozilla::EventMessage::eMouseUp;
-          }
-
-          window->DispatchMouseEvent(
-            eMsg,
-            0,                                      // wParam
-            POINTTOPOINTS(fxrWindow.mLastMousePt)  // lParam
-          );
-        }
-        else if (eventType == vr::VREvent_MouseButtonUp) {
-          // When the 2nd button is released, show the transport controls.
-          // TODO: Add a check to see if FullScreen + 360 video is active
-          EnsureTransportControls();
-        }
-
+        HandleMouseEvent(fxrWindow, window, data, eventType);
         break;
       }
 
@@ -571,92 +537,21 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
 
         MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
                 ("VREvent_Controller_t.button: %u", data.button));
-
         break;
       }
 
       case vr::VREvent_ScrollDiscrete: {
-        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, ("scroll", nullptr));
         vr::VREvent_Scroll_t data = iter->data.scroll;
-
-        if (!hasScrolled) {
-          SHORT scrollDelta = WHEEL_DELTA * (short)data.ydelta;
-
-          // Note: two important things about Synthesize below
-          // - It uses SendMessage, not PostMessage, so it's a synchronous call
-          // to scroll
-          // - Because it's synchronous and because the synthesizer doesn't
-          // support multiple synthesized events (i.e., needs a call to Finish),
-          // only one can be processed at a time in this message loop
-          mozilla::LayoutDeviceIntPoint pt;
-          pt.x = fxrWindow.mLastMousePt.x;
-          pt.y = fxrWindow.mLastMousePt.y;
-
-          mozilla::widget::MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
-              window, pt, WM_MOUSEWHEEL, scrollDelta,
-              0,  // aModifierFlags
-              nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET |
-                  nsIDOMWindowUtils::MOUSESCROLL_POINT_IN_WINDOW_COORD);
-
-          hasScrolled = true;
-        }
-
+        
+        HandleScrollEvent(fxrWindow, window, data, hasScrolled);
         break;
       }
 
       case vr::VREvent_KeyboardCharInput: {
         vr::VREvent_Keyboard_t data = iter->data.keyboard;
 
-        size_t inputLength =
-            strnlen_s(data.cNewInput, ARRAYSIZE(data.cNewInput));
-        wchar_t msgChar = data.cNewInput[0];
-
-        if (inputLength > 1) {
-          // The event can contain multi-byte UTF8 characters. Convert them to
-          // a single Wide character to send to Gecko
-          wchar_t convertedChar[ARRAYSIZE(data.cNewInput)] = {0};
-          int convertedReturn = ::MultiByteToWideChar(
-              CP_UTF8, MB_ERR_INVALID_CHARS, data.cNewInput, inputLength,
-              convertedChar, ARRAYSIZE(convertedChar));
-
-          MOZ_ASSERT(convertedReturn == 1);
-          mozilla::Unused << convertedReturn;
-
-          msgChar = convertedChar[0];
-        } else {
-          MOZ_ASSERT(inputLength == 1);
-          if (msgChar == L'\n') {
-            // Make new line
-            msgChar = VK_RETURN;
-          }
-        }
-
-        switch (msgChar) {
-            // These characters need to be mapped to key presses rather than
-            // char so that they map to actions instead.
-          case VK_BACK:
-          case VK_TAB:
-          case VK_RETURN:
-          case VK_ESCAPE: {
-            MSG nativeMsgDown = mozilla::widget::WinUtils::InitMSG(
-              WM_KEYDOWN, msgChar, 0, fxrWindow.mHwndWidget);
-            window->ProcessKeyDownMessage(nativeMsgDown, nullptr);
-
-            MSG nativeMsgUp = mozilla::widget::WinUtils::InitMSG(
-              WM_KEYUP, msgChar, 0, fxrWindow.mHwndWidget);
-            window->ProcessKeyUpMessage(nativeMsgUp, nullptr);
-
-            break;
-          }
-
-          default: {
-            MSG nativeMsg = mozilla::widget::WinUtils::InitMSG(
-              WM_CHAR, msgChar, 0, fxrWindow.mHwndWidget);
-
-            window->ProcessCharMessage(nativeMsg, nullptr);
-            break;
-          }
-        }
+        HandleKeyboardEvent(fxrWindow, window, data);
+        break;
       }
 
       case vr::VREvent_OverlayFocusChanged: {
@@ -676,11 +571,135 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
                 ("Overlay focus: %s", isFocused ? "true" : "false"));
 
         window->DispatchFocusToTopLevelWindow(isFocused);
+        break;
       }
     }
   }
 
   window->DispatchPendingEvents();
+}
+
+void FxRWindowManager::HandleMouseEvent(FxRWindowManager::FxRWindow& fxrWindow, nsWindow* window,
+  vr::VREvent_Mouse_t& data, uint32_t eventType) {
+  if (eventType == vr::VREvent_MouseButtonDown ||
+    eventType == vr::VREvent_MouseButtonUp) {
+    MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+      ("VREvent_Mouse_t.button: %u", data.button));
+  }
+
+  // Windows' origin is top-left, whereas OpenVR's origin is
+  // bottom-left, so transform the y-coordinate.
+  fxrWindow.mLastMousePt.x = (LONG)(data.x);
+  fxrWindow.mLastMousePt.y =
+    fxrWindow.mOverlaySizeRec.bottom - (LONG)(data.y);
+
+  if (data.button != vr::EVRMouseButton::VRMouseButton_Right) {
+    mozilla::EventMessage eMsg;
+    if (eventType == vr::VREvent_MouseMove) {
+      eMsg = mozilla::EventMessage::eMouseMove;
+    }
+    else if (eventType == vr::VREvent_MouseButtonDown) {
+      eMsg = mozilla::EventMessage::eMouseDown;
+    }
+    else {
+      MOZ_ASSERT(eventType == vr::VREvent_MouseButtonUp);
+      eMsg = mozilla::EventMessage::eMouseUp;
+    }
+
+    window->DispatchMouseEvent(
+      eMsg,
+      0,                                     // wParam
+      POINTTOPOINTS(fxrWindow.mLastMousePt)  // lParam
+    );
+  }
+  else if (eventType == vr::VREvent_MouseButtonUp) {
+    // When the 2nd button is released, show the transport controls.
+    // TODO: Add a check to see if FullScreen + 360 video is active
+    EnsureTransportControls();
+  }
+}
+
+void FxRWindowManager::HandleScrollEvent(FxRWindowManager::FxRWindow& fxrWindow, nsWindow* window,
+  vr::VREvent_Scroll_t& data, bool& hasScrolled) {
+  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info, ("scroll", nullptr));
+
+  if (!hasScrolled) {
+    SHORT scrollDelta = WHEEL_DELTA * (short)data.ydelta;
+
+    // Note: two important things about Synthesize below
+    // - It uses SendMessage, not PostMessage, so it's a synchronous call
+    // to scroll
+    // - Because it's synchronous and because the synthesizer doesn't
+    // support multiple synthesized events (i.e., needs a call to Finish),
+    // only one can be processed at a time in this message loop
+    mozilla::LayoutDeviceIntPoint pt;
+    pt.x = fxrWindow.mLastMousePt.x;
+    pt.y = fxrWindow.mLastMousePt.y;
+
+    mozilla::widget::MouseScrollHandler::SynthesizeNativeMouseScrollEvent(
+      window, pt, WM_MOUSEWHEEL, scrollDelta,
+      0,  // aModifierFlags
+      nsIDOMWindowUtils::MOUSESCROLL_SEND_TO_WIDGET |
+      nsIDOMWindowUtils::MOUSESCROLL_POINT_IN_WINDOW_COORD);
+
+    hasScrolled = true;
+  }
+}
+
+void FxRWindowManager::HandleKeyboardEvent(FxRWindowManager::FxRWindow& fxrWindow, nsWindow* window,
+  vr::VREvent_Keyboard_t& data) {
+  size_t inputLength =
+    strnlen_s(data.cNewInput, ARRAYSIZE(data.cNewInput));
+  wchar_t msgChar = data.cNewInput[0];
+
+  if (inputLength > 1) {
+    // The event can contain multi-byte UTF8 characters. Convert them to
+    // a single Wide character to send to Gecko
+    wchar_t convertedChar[ARRAYSIZE(data.cNewInput)] = { 0 };
+    int convertedReturn = ::MultiByteToWideChar(
+      CP_UTF8, MB_ERR_INVALID_CHARS, data.cNewInput, inputLength,
+      convertedChar, ARRAYSIZE(convertedChar));
+
+    MOZ_ASSERT(convertedReturn == 1);
+    mozilla::Unused << convertedReturn;
+
+    msgChar = convertedChar[0];
+  }
+  else {
+    MOZ_ASSERT(inputLength == 1);
+    if (msgChar == L'\n') {
+      // Make new line
+      msgChar = VK_RETURN;
+    }
+  }
+
+  switch (msgChar) {
+    // These characters need to be mapped to key presses rather than char
+    // so that they map to actions instead.
+    case VK_BACK:
+    case VK_TAB:
+    case VK_RETURN:
+    case VK_ESCAPE: {
+      MSG nativeMsgDown = mozilla::widget::WinUtils::InitMSG(
+        WM_KEYDOWN, msgChar, 0, fxrWindow.mHwndWidget);
+      window->ProcessKeyDownMessage(nativeMsgDown, nullptr);
+
+      MSG nativeMsgUp = mozilla::widget::WinUtils::InitMSG(
+        WM_KEYUP, msgChar, 0, fxrWindow.mHwndWidget);
+      window->ProcessKeyUpMessage(nativeMsgUp, nullptr);
+
+      break;
+    }
+
+    default: {
+      MSG nativeMsg = mozilla::widget::WinUtils::InitMSG(
+        WM_CHAR, msgChar, 0, fxrWindow.mHwndWidget);
+
+      window->ProcessCharMessage(nativeMsg, nullptr);
+      break;
+    }
+  }
+
 }
 
 void FxRWindowManager::ShowVirtualKeyboard(uint64_t aOverlayId) {
