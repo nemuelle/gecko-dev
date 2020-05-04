@@ -14,9 +14,6 @@
 class nsPIDOMWindowOuter;
 class nsWindow;
 class nsIWidget;
-namespace vr {
-class IVRSystem;
-};
 
 typedef std::vector<vr::VREvent_t> VREventVector;
 
@@ -76,22 +73,20 @@ class FxRWindowManager final {
   bool IsFxRWindow(uint64_t aOuterWindowID);
   bool IsFxRWindow(const nsWindow* aWindow) const;
 
+  void ProcessOverlayEvents(nsWindow* window);
   void ShowVirtualKeyboard(uint64_t aOverlayId);
   void HideVirtualKeyboard();
 
   void OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
-  vr::VROverlayError OnFullScreenChange(bool aIsFullScreen);
+  void OnFullScreenChange(uint64_t aOuterWindowID, bool aIsFullScreen);
   void SetPlayMediaState(const nsAString& aState);
-  void SetProjectionMode(const nsAString& aMode);
-
-  void ProcessOverlayEvents(nsWindow* window);
- vr::VROverlayError ChangeProjectionMode(FxRProjectionMode projectionMode);
+  void SetProjectionMode(const nsAString& aMode);  
 
  private:
   static void InitWindow(FxRWindow& newWindow, nsPIDOMWindowOuter* aWindow);
   static void CleanupWindow(FxRWindow& fxrWindow);
   FxRWindow& GetFxrWindowFromWidget(nsIWidget* widget);  
-  bool CreateOverlayForWindow(FxRWindow& newWindow, char* name, float width);
+  bool CreateOverlayForWindow(FxRWindow& newWindow, const char* name, float width);
 
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
   static DWORD OverlayInputPump(_In_ LPVOID lpParameter);
@@ -103,8 +98,8 @@ class FxRWindowManager final {
 
   FxRWindowManager();
 
-  void ToggleProjectionMode();
-  int mCurrentProjectionIndex = 0;
+  vr::VROverlayError ChangeProjectionMode(FxRProjectionMode projectionMode);
+  void ToggleProjectionMode();  
 
   // Members for OpenVR
   vr::IVRSystem * mVrApp;
@@ -114,13 +109,15 @@ class FxRWindowManager final {
   mozilla::Atomic<bool> mIsOverlayPumpActive;
   HANDLE mOverlayPumpThread;
 
-  const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = {
-      VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360, VIDEO_PROJECTION_360S,
-      VIDEO_PROJECTION_3D};
-
   // Only a single window is supported for tracking. Support for multiple
   // windows will require a data structure to collect windows as they are
   // created.
   FxRWindow mFxRWindow;
   FxRWindow mTransportWindow;
+
+  // Members for projection mode toggling
+  int mCurrentProjectionIndex = 0;
+  const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = {
+      VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360, VIDEO_PROJECTION_360S,
+      VIDEO_PROJECTION_3D};
 };
