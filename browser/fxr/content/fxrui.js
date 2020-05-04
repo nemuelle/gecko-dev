@@ -67,6 +67,12 @@ window.addEventListener(
     setupBrowser();
     setupNavButtons();
     setupUrlBar();
+
+    // Minimize the window after everything is setup
+    window.setTimeout(
+      () => { window.requestIdleCallback(() => { window.minimize(); }) },
+      3000
+    );
   },
   { once: true }
 );
