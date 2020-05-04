@@ -67,10 +67,22 @@ void CompositorWidgetParent::PostRender(WidgetRenderingContext* aContext) {
 }
 
 LayoutDeviceIntSize CompositorWidgetParent::GetClientSize() {
+  if (HasFxrOutputHandler()) {
+    // There are several places in WebRender that make decisions based on the
+    // client size, specifically whether or not to present the updated
+    // composition output. Further, a minimized window becomes sized 0,0, which
+    // results in a minimized FxR window not rendering in a headset.
+    uint32_t width, height;
+    if (GetFxrOutputHandler()->GetSize(width, height)) {
+      return LayoutDeviceIntSize(width, height);
+    }
+  }
+
   RECT r;
   if (!::GetClientRect(mWnd, &r)) {
     return LayoutDeviceIntSize();
   }
+
   return LayoutDeviceIntSize(r.right - r.left, r.bottom - r.top);
 }
 

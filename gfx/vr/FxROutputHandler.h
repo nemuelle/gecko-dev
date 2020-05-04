@@ -30,8 +30,13 @@ class FxROutputHandler final {
   bool TryInitialize(IDXGISwapChain* aSwapChain, ID3D11Device* aDevice);
   void UpdateOutput(ID3D11DeviceContext* aCtx);
 
+  bool GetSize(uint32_t& aWidth, uint32_t& aHeight) const;
+
  private:
   vr::IVRSystem * m_pHMD = nullptr;
   uint64_t mOverlayId = 0;
   RefPtr<IDXGISwapChain> mSwapChain = nullptr;
+  // Cache the width/height from the last initialization for easy retrieval
+  uint32_t mLastWidth = 0;
+  uint32_t mLastHeight = 0;
 };
