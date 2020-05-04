@@ -17,6 +17,13 @@ FxROutputHandler::FxROutputHandler(uint64_t aOverlayId)
   }
 }
 
+bool FxROutputHandler::GetSize(uint32_t& aWidth, uint32_t& aHeight) const {
+  aWidth = mLastWidth;
+  aHeight = mLastHeight;
+
+  return mLastWidth != 0 && mLastHeight != 0;
+}
+
 // TryInitialize is responsible for associating this output handler with the
 // calling window's swapchain for subsequent updates.
 // See nsFxrCommandLineHandler::Handle for more information about the
@@ -38,10 +45,13 @@ bool FxROutputHandler::TryInitialize(IDXGISwapChain* aSwapChain,
           D3D11_TEXTURE2D_DESC desc;
           texOrig->GetDesc(&desc);
 
+          mLastWidth = desc.Width;
+          mLastHeight = desc.Height;
+
           // In order to properly process mouse events from the controller, set
           // the mouse scale based on the size of the window texture
-          vr::HmdVector2_t vecWindowSize = { (float)desc.Width,
-                                             (float)desc.Height };
+          vr::HmdVector2_t vecWindowSize = { (float)mLastWidth,
+                                             (float)mLastHeight };
 
           vr::EVROverlayError error = vr::VROverlay()->SetOverlayMouseScale(
             mOverlayId, &vecWindowSize);
