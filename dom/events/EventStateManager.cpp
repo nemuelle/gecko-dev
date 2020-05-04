@@ -115,6 +115,8 @@
 #include "GeckoProfiler.h"
 #include "Units.h"
 
+#include "FxRWindowManager.h"
+
 #ifdef XP_MACOSX
 #  import <ApplicationServices/ApplicationServices.h>
 #endif
@@ -1968,6 +1970,14 @@ void EventStateManager::GenerateDragGesture(nsPresContext* aPresContext,
 
   nsCOMPtr<nsPIDOMWindowOuter> window = docshell->GetWindow();
   if (!window) return;
+
+  if (FxRWindowManager::GetInstance()->IsFxRWindow(window->WindowID())) {
+    // TODO: For an FxR Window, trying to drag causes a hang in the call to
+    // ::DoDragDrop, which further appears as a hang with no interactivity
+    // inside the headset. Until drag-drop is a required behavior for immersive
+    // browsing, simply disable for now.
+    return;
+  }
 
   RefPtr<DataTransfer> dataTransfer =
       new DataTransfer(window, eDragStart, false, -1);
