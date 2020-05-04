@@ -101,6 +101,13 @@ class FxRWindowManager final {
   static DWORD OverlayInputPump(_In_ LPVOID lpParameter);
   void CollectOverlayEvents(FxRWindow& fxrWindow);
 
+  void HandleMouseEvent(FxRWindow& fxrWindow, nsWindow* window,
+                        vr::VREvent_Mouse_t& data, uint32_t eventType);
+  void HandleScrollEvent(FxRWindow& fxrWindow, nsWindow* window,
+                         vr::VREvent_Scroll_t& data, bool& hasScrolled);
+  void HandleKeyboardEvent(FxRWindow& fxrWindow, nsWindow* window,
+                           vr::VREvent_Keyboard_t& data);
+
   void ToggleMedia();
   void EnsureTransportControls();
   void HideTransportControls();
