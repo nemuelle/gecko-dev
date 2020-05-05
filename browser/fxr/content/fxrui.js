@@ -165,6 +165,7 @@ function setupNavButtons() {
     "eStop",
     "eHome",
     "ePrefs",
+    "eClose"
   ];
 
   function navButtonHandler(e) {
@@ -192,6 +193,10 @@ function setupNavButtons() {
 
         case "ePrefs":
           openSettings();
+          break;
+
+        case "eClose":
+          window.close();
           break;
       }
     }
