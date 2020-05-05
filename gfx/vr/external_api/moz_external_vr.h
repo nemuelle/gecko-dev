@@ -47,8 +47,8 @@ namespace gfx {
 // and mapped files if we have both release and nightlies
 // running at the same time? Or...what if we have multiple
 // release builds running on same machine? (Bug 1563232)
-#define SHMEM_VERSION "0.0.10"
-static const int32_t kVRExternalVersion = 17;
+#define SHMEM_VERSION "9.9.7"
+static const int32_t kVRExternalVersion = 99;
 
 // We assign VR presentations to groups with a bitmask.
 // Currently, we will only display either content or chrome.
