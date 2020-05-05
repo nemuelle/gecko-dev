@@ -75,6 +75,9 @@ body {
 }
 .icon_prefs {
   background-image: url("assets/icon-settings.svg");
+}
+.icon_close {  
+  background-image: url("assets/icon-stop-reload.svg");
   margin-inline-end: 10px;
 }
 
