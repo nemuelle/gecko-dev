@@ -25,7 +25,7 @@ namespace vr {
 // only be on the RenderThread.
 class FxROutputHandler final {
  public:
-   FxROutputHandler(uint64_t aOverlayId);
+  explicit FxROutputHandler(uint64_t aOverlayId);
 
   bool TryInitialize(IDXGISwapChain* aSwapChain, ID3D11Device* aDevice);
   void UpdateOutput(ID3D11DeviceContext* aCtx);
