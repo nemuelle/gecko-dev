@@ -56,6 +56,7 @@ bool FxROutputHandler::TryInitialize(IDXGISwapChain* aSwapChain,
           vr::EVROverlayError error = vr::VROverlay()->SetOverlayMouseScale(
             mOverlayId, &vecWindowSize);
           MOZ_ASSERT(error == vr::VROverlayError_None);
+          mozilla::Unused << error;
 
           texOrig->Release();
         }
@@ -87,6 +88,7 @@ void FxROutputHandler::UpdateOutput(ID3D11DeviceContext* aCtx) {
       &overlayTextureDX11
     );
     MOZ_ASSERT(error == vr::VROverlayError_None);
+    mozilla::Unused << error;
 
     texOrig->Release();
   }
