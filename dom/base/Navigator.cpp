@@ -1527,8 +1527,6 @@ already_AddRefed<Promise> Navigator::GetVRDisplays(ErrorResult& aRv) {
     return nullptr;
   }
 
-  RefPtr<BrowserChild> browser(BrowserChild::GetFrom(mWindow));
-
   mVRGetDisplaysPromises.AppendElement(p);
 
   nsGlobalWindowInner* win = nsGlobalWindowInner::Cast(mWindow);
