@@ -95,7 +95,7 @@ class FxRWindowManager final {
                               float width);
 
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
-  static DWORD OverlayInputPump(_In_ LPVOID lpParameter);
+  static DWORD WINAPI OverlayInputPump(_In_ LPVOID lpParameter);
   void CollectOverlayEvents(FxRWindow& fxrWindow);
 
   void HandleMouseEvent(FxRWindow& fxrWindow, nsWindow* window,
