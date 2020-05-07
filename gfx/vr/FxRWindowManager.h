@@ -62,6 +62,7 @@ class FxRWindowManager final {
     // event
     POINT mLastMousePt;
     RECT mOverlaySizeRec;
+	
   };
 
  public:
@@ -123,4 +124,7 @@ class FxRWindowManager final {
   // created.
   FxRWindow mFxRWindow;
   FxRWindow mTransportWindow;
+  bool mIsMovingWindow;
+  vr::HmdMatrix34_t mCurrentHeadPose;
+
 };

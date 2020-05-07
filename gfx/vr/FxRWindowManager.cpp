@@ -113,8 +113,8 @@ void FxRWindowManager::RemoveWindow(uint64_t aOverlayId) {
   // transport window as well because there is no reason for it to be
   // available after the browser window is cleaned up.
   if (mTransportWindow.mOverlayHandle != 0) {
-	  mTransportWindow.mWindow->Close();
-	  CleanupWindow(mTransportWindow);
+    mTransportWindow.mWindow->Close();
+    CleanupWindow(mTransportWindow);
   }
 }
 
@@ -284,6 +284,22 @@ void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
               ("VREvent_t.eventType: %s",
                vr::VRSystem()->GetEventTypeNameFromEnum(
                    (vr::EVREventType)(vrEvent.eventType))));
+      if (vrEvent.eventType == vr::VREvent_PropertyChanged) {
+        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+                ("VREvent_t.eventType: %u", vrEvent.data.property.prop));
+        if (vrEvent.data.property.prop ==
+            vr::Prop_DriverRequestsApplicationPause_Bool) {
+          ::vr::ETrackedPropertyError err;
+          bool pauseRequested = vr::VRSystem()->GetBoolTrackedDeviceProperty(
+              ::vr::k_unTrackedDeviceIndex_Hmd,
+              ::vr::Prop_DriverRequestsApplicationPause_Bool, &err);
+          if (err == ::vr::TrackedProp_Success && !pauseRequested) {
+            vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayFlag(
+                mFxRWindow.mOverlayHandle,
+                vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible, true);
+          }
+        }
+      }
     }
 
     switch (vrEvent.eventType) {
@@ -428,6 +444,9 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
   for (auto iter = rgEvents.begin(); iter != rgEvents.end(); iter++) {
     uint32_t eventType = iter->eventType;
 
+    vr::ETrackedDeviceClass trackedDeviceClass =
+        vr::VRSystem()->GetTrackedDeviceClass(iter->trackedDeviceIndex);
+
     switch (eventType) {
       case vr::VREvent_MouseMove:
       case vr::VREvent_MouseButtonUp:
@@ -437,7 +456,90 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
         if (eventType == vr::VREvent_MouseButtonDown ||
             eventType == vr::VREvent_MouseButtonUp) {
           MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
-                  ("VREvent_Mouse_t.button: %u", data.button));
+                  ("VREvent_Mouse_t.button: %u, %u, %u", data.button,
+                   iter->trackedDeviceIndex, trackedDeviceClass));
+        } else if (eventType == vr::VREvent_MouseMove && mIsMovingWindow) {
+          vr::VREvent_t vrEvent;
+          vr::TrackedDevicePose_t headPose;
+          while (vr::VRSystem()->PollNextEventWithPose(
+              vr::TrackingUniverseStanding, &vrEvent, sizeof(vrEvent),
+              &headPose)) {
+            vr::ETrackedDeviceClass trackedDeviceClass =
+                vr::VRSystem()->GetTrackedDeviceClass(
+                    vrEvent.trackedDeviceIndex);
+            if (trackedDeviceClass ==
+                vr::ETrackedDeviceClass::TrackedDeviceClass_HMD) {
+              if (headPose.bPoseIsValid) {
+                mCurrentHeadPose = headPose.mDeviceToAbsoluteTracking;
+                vr::HmdMatrix34_t deviceToAbsoluteTracking =
+                    headPose.mDeviceToAbsoluteTracking;
+                MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+                        ("Head Position: %.2f, %.2f, %.2f",
+                         deviceToAbsoluteTracking.m[0][3],
+                         deviceToAbsoluteTracking.m[1][3],
+                         deviceToAbsoluteTracking.m[2][3]));
+                break;
+              }
+            }
+          }
+
+          vr::HmdMatrix34_t mouseSpotTransform;
+
+          const vr::HmdVector2_t coordinatesInOverlay = {data.x, data.y};
+
+          // Get the world position of where the pointer intersects the window
+          vr::VROverlayError overlayError =
+              vr::VROverlay()->GetTransformForOverlayCoordinates(
+                  mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
+                  coordinatesInOverlay, &mouseSpotTransform);
+          MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+          mozilla::gfx::Point3D mouseSpotPosition = mozilla::gfx::Point3D(
+              mouseSpotTransform.m[0][3], mouseSpotTransform.m[1][3],
+              mouseSpotTransform.m[2][3]);
+
+          // Place the window at the spot where the pointer intersected, and
+          // rotate the window so it faces the user
+          mozilla::gfx::Point3D up = mozilla::gfx::Point3D(0.0, 1.0, 0.0);
+
+          // Get the point above or below the user's head, that is at the same
+          // height as where the pointer hit the window
+          mozilla::gfx::Point3D pointAboveHeadAtMouseHeight =
+              mozilla::gfx::Point3D(mCurrentHeadPose.m[0][3],
+                                    mouseSpotPosition[1],
+                                    mCurrentHeadPose.m[2][3]);
+
+          // Calculate the rotation vectors to have the window face the point
+          // above/below the user's head at the window height
+          mozilla::gfx::Point3D lookAtZ =
+              pointAboveHeadAtMouseHeight - mouseSpotPosition;
+          lookAtZ.Normalize();
+
+          // Move the window forward/backward from where it is, to keep it a
+          // consistent distance from the user
+          float distance =
+              mouseSpotPosition.Distance(pointAboveHeadAtMouseHeight);
+          float moveBy = distance - 2.0f;
+          mouseSpotPosition.MoveBy(lookAtZ[0] * moveBy, lookAtZ[1] * moveBy,
+                                   lookAtZ[2] * moveBy);
+
+          mozilla::gfx::Point3D lookAtX = up.CrossProduct(lookAtZ);
+          lookAtX.Normalize();
+
+          mozilla::gfx::Point3D lookAtY = lookAtZ.CrossProduct(lookAtX);
+
+          // Create the transform matrix using the rotation and position vectors
+          // calculated above
+          vr::HmdMatrix34_t newPosition = {
+              lookAtX[0], lookAtY[0], lookAtZ[0], mouseSpotPosition[0],
+              lookAtX[1], lookAtY[1], lookAtZ[1], mouseSpotPosition[1],
+              lookAtX[2], lookAtY[2], lookAtZ[2], mouseSpotPosition[2]};
+
+          // Set the transform matrix on the overlay
+          overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+              mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
+              &newPosition);
+          MOZ_ASSERT(overlayError == vr::VROverlayError_None);
         }
 
         // Windows' origin is top-left, whereas OpenVR's origin is
@@ -454,7 +556,11 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
             eMsg = mozilla::EventMessage::eMouseDown;
           } else {
             MOZ_ASSERT(eventType == vr::VREvent_MouseButtonUp);
+            vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayFlag(
+                mFxRWindow.mOverlayHandle,
+                vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible, false);
             eMsg = mozilla::EventMessage::eMouseUp;
+            break;
           }
 
           window->DispatchMouseEvent(
@@ -463,20 +569,44 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
               POINTTOPOINTS(fxrWindow.mLastMousePt)  // lParam
           );
         } else if (eventType == vr::VREvent_MouseButtonUp) {
-          // When the 2nd button is released, show the transport controls.
-          // TODO: Add a check to see if FullScreen + 360 video is active
-          EnsureTransportControls();
+          float widthInMeters;
+          vr::VROverlayError overlayError =
+              vr::VROverlay()->GetOverlayWidthInMeters(fxrWindow.mOverlayHandle,
+                                                       &widthInMeters);
+          MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+          widthInMeters /= 1.5f;
+          overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
+              fxrWindow.mOverlayHandle, widthInMeters);
+          MOZ_ASSERT(overlayError == vr::VROverlayError_None);
         }
 
         break;
       }
 
-      case vr::VREvent_ButtonPress:
+      case vr::VREvent_ButtonPress: {
+        break;
+      }
       case vr::VREvent_ButtonUnpress: {
         vr::VREvent_Controller_t data = iter->data.controller;
 
         MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
                 ("VREvent_Controller_t.button: %u", data.button));
+
+        float widthInMeters;
+        vr::VROverlayError overlayError =
+            vr::VROverlay()->GetOverlayWidthInMeters(fxrWindow.mOverlayHandle,
+                                                     &widthInMeters);
+        MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+        if (data.button == 1) {
+          widthInMeters *= 1.5f;
+        } else if (data.button == 2) {
+          widthInMeters /= 1.5f;
+        }
+        overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
+            fxrWindow.mOverlayHandle, widthInMeters);
+        MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
         break;
       }
@@ -641,7 +771,7 @@ vr::VROverlayError FxRWindowManager::OnFullScreenChange(bool aIsFullScreen) {
   if (aIsFullScreen) {
     // Create the transport controls overlay
     EnsureTransportControls();
-    return ChangeProjectionMode(VIDEO_PROJECTION_360);
+    return ChangeProjectionMode(VIDEO_PROJECTION_2D);
   } else {
     // Close the transport controls overlay
     HideTransportControls();
@@ -747,6 +877,7 @@ void FxRWindowManager::HideTransportControls() {
   MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
           ("FxRWindowManager::HideTransportControls", nullptr));
   vr::VROverlayError overlayError =
-      vr::VROverlay()->HideOverlay(mTransportWindow.mOverlayHandle);
+      vr::VROverlay()->DestroyOverlay(mTransportWindow.mOverlayHandle);
   MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+  mTransportWindow.mOverlayHandle = 0;
 }
