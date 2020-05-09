@@ -568,45 +568,28 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
               0,                                     // wParam
               POINTTOPOINTS(fxrWindow.mLastMousePt)  // lParam
           );
-        } else if (eventType == vr::VREvent_MouseButtonUp) {
-          float widthInMeters;
-          vr::VROverlayError overlayError =
-              vr::VROverlay()->GetOverlayWidthInMeters(fxrWindow.mOverlayHandle,
-                                                       &widthInMeters);
-          MOZ_ASSERT(overlayError == vr::VROverlayError_None);
-
-          widthInMeters /= 1.5f;
-          overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-              fxrWindow.mOverlayHandle, widthInMeters);
-          MOZ_ASSERT(overlayError == vr::VROverlayError_None);
         }
 
         break;
       }
 
-      case vr::VREvent_ButtonPress: {
-        break;
-      }
+      case vr::VREvent_ButtonPress:
       case vr::VREvent_ButtonUnpress: {
         vr::VREvent_Controller_t data = iter->data.controller;
 
         MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
                 ("VREvent_Controller_t.button: %u", data.button));
 
-        float widthInMeters;
-        vr::VROverlayError overlayError =
-            vr::VROverlay()->GetOverlayWidthInMeters(fxrWindow.mOverlayHandle,
-                                                     &widthInMeters);
-        MOZ_ASSERT(overlayError == vr::VROverlayError_None);
-
-        if (data.button == 1) {
-          widthInMeters *= 1.5f;
-        } else if (data.button == 2) {
-          widthInMeters /= 1.5f;
+        if (eventType == vr::VREvent_ButtonPress) {
+          // "B" button
+          if (data.button == 1) {
+            mIsMovingWindow = true;
+          }
+        } else if (eventType == vr::VREvent_ButtonUnpress) {
+          if (data.button == 1) {
+            mIsMovingWindow = false;
+          }
         }
-        overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-            fxrWindow.mOverlayHandle, widthInMeters);
-        MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
         break;
       }
@@ -636,6 +619,19 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
 
           hasScrolled = true;
         }
+        float widthInMeters;
+        vr::VROverlayError overlayError =
+            vr::VROverlay()->GetOverlayWidthInMeters(fxrWindow.mOverlayHandle,
+                                                     &widthInMeters);
+        MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+        widthInMeters += data.ydelta * .5f;
+        widthInMeters = (widthInMeters < 1.0f)
+                            ? 1.0f
+                            : (widthInMeters > 12.0f) ? 12.0f : widthInMeters;
+        overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
+            fxrWindow.mOverlayHandle, widthInMeters);
+        MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
         break;
       }
