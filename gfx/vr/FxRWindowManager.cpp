@@ -502,14 +502,20 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
           // rotate the window so it faces the user
           mozilla::gfx::Point3D up = mozilla::gfx::Point3D(0.0, 1.0, 0.0);
 
+          // Bounds check the Y value, so window doesn't get too far above or below the user
+		  float yPosition = mouseSpotPosition[1];
+		  yPosition = (yPosition > 5.0) ? 5.0 : (yPosition < -5.0) ? -5.0 : yPosition;
+
           // Get the point above or below the user's head, that is at the same
           // height as where the pointer hit the window
           mozilla::gfx::Point3D pointAboveHeadAtMouseHeight =
               mozilla::gfx::Point3D(mCurrentHeadPose.m[0][3],
-                                    mouseSpotPosition[1],
+                                    yPosition,
                                     mCurrentHeadPose.m[2][3]);
 
-          // Calculate the rotation vectors to have the window face the point
+          
+          
+         // Calculate the rotation vectors to have the window face the point
           // above/below the user's head at the window height
           mozilla::gfx::Point3D lookAtZ =
               pointAboveHeadAtMouseHeight - mouseSpotPosition;
