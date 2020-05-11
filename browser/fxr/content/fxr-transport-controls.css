@@ -2,18 +2,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+body {
+  background-color: var(--num02);
+}
+
 .transport_container {
-  margin-block: 4px;
+  margin-block: 5px;
   
   display:flex;
-  flex-direction: row;
-  
-  border: 2px solid var(--num08);
-  border-radius: 44px;
+  flex-direction: row;  
 }
 
 .icon_container {
   margin: 0 5px;
+  border-radius: unset;
 }
 
 .icon_backward {
