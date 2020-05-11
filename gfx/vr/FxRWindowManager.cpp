@@ -38,7 +38,8 @@ FxRWindowManager::FxRWindowManager()
       mIsOverlayPumpActive(false),
       mOverlayPumpThread(nullptr),
       mFxRWindow({0}),
-      mTransportWindow({0}) {}
+      mTransportWindow({0}),
+      mIsInFullscreen(false) {}
 
 FxRWindowManager::~FxRWindowManager() {
   MOZ_ASSERT(mFxRWindow.mOverlayHandle == 0);
@@ -160,6 +161,7 @@ void FxRWindowManager::RemoveWindow(uint64_t aOverlayId) {
   // transport window as well because there is no reason for it to be
   // available after the browser window is cleaned up.
   if (mTransportWindow.mWindow != nullptr) {
+    MOZ_ASSERT(!mIsInFullscreen);
     mTransportWindow.mWindow->Close();
     CleanupWindow(mTransportWindow);
   }
@@ -244,7 +246,7 @@ vr::VROverlayError FxRWindowManager::SetupOverlayInput(
   vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayFlag(
       overlayId, vr::VROverlayFlags_SendVRDiscreteScrollEvents, true);
 
-  if (overlayError == vr::VROverlayError_None) {
+  if (overlayError == vr::VROverlayError_None && !mIsOverlayPumpActive) {
     mIsOverlayPumpActive = true;
     DWORD dwTid = 0;
     // TODO: A more Gecko-y way of spawning a new thread?
@@ -255,7 +257,7 @@ vr::VROverlayError FxRWindowManager::SetupOverlayInput(
 }
 
 // Definition of ThreadProc for Input thread
-DWORD FxRWindowManager::OverlayInputPump(_In_ LPVOID lpParameter) {
+DWORD FxRWindowManager::OverlayInputPump(LPVOID lpParameter) {
   PlatformThread::SetName("OpenVR Overlay Input");
 
   FxRWindowManager* manager = static_cast<FxRWindowManager*>(lpParameter);
@@ -305,6 +307,8 @@ void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
   }
 
   // Acquire CS
+  // TODO: Scope this critsec down further, creating another vector on the
+  // stack for copying like ProcessOverlayEvents
   ::EnterCriticalSection(&fxrWindow.mEventsCritSec);
 
   bool initiallyEmpty = fxrWindow.mEventsVector.empty();
@@ -390,6 +394,7 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
 
         MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
                 ("VREvent_Controller_t.button: %u", data.button));
+
         break;
       }
 
@@ -463,9 +468,8 @@ void FxRWindowManager::HandleMouseEvent(FxRWindowManager::FxRWindow& fxrWindow,
                                POINTTOPOINTS(fxrWindow.mLastMousePt)  // lParam
     );
   } else if (eventType == vr::VREvent_MouseButtonUp) {
-    // When the 2nd button is released, show the transport controls.
-    // TODO: Add a check to see if FullScreen + 360 video is active
-    EnsureTransportControls();
+    // When the 2nd button is released, toggle the transport controls.
+    ToggleTransportControlsVisibility();
   }
 }
 
@@ -594,6 +598,8 @@ void FxRWindowManager::OnWebXRPresentationChange(uint64_t aOuterWindowID,
 void FxRWindowManager::OnFullScreenChange(uint64_t aOuterWindowID,
                                           bool aIsFullScreen) {
   if (IsFxRWindow(aOuterWindowID)) {
+    mIsInFullscreen = aIsFullScreen;
+
     vr::VROverlayError overlayError;
     if (aIsFullScreen) {
       // Create the transport controls overlay
@@ -648,15 +654,18 @@ void FxRWindowManager::SetProjectionMode(const nsAString& aMode) {
           ("FxRWindowManager::SetProjectionMode - %s",
            NS_ConvertUTF16toUTF8(aMode).Data()));
 
-  if (aMode == u"360") {
-    ChangeProjectionMode(VIDEO_PROJECTION_360);
-  } else if (aMode == u"360-stereo") {
-    ChangeProjectionMode(VIDEO_PROJECTION_360S);
-  } else if (aMode == u"3d") {
-    ChangeProjectionMode(VIDEO_PROJECTION_3D);
-  } else if (aMode == u"exit") {
-    ChangeProjectionMode(VIDEO_PROJECTION_2D);
-    HideTransportControls();
+  if (mFxRWindow.mOverlayHandle != 0) {
+    if (aMode == u"360") {
+      ChangeProjectionMode(VIDEO_PROJECTION_360);
+    } else if (aMode == u"360-stereo") {
+      ChangeProjectionMode(VIDEO_PROJECTION_360S);
+    } else if (aMode == u"3d") {
+      ChangeProjectionMode(VIDEO_PROJECTION_3D);
+    } else if (aMode == u"2d") {
+      ChangeProjectionMode(VIDEO_PROJECTION_2D);
+    } else if (aMode == u"exit") {
+      mFxRWindow.mWindow->SetFullScreen(false);
+    }
   }
 }
 
@@ -664,6 +673,8 @@ void FxRWindowManager::SetProjectionMode(const nsAString& aMode) {
 // in FxRProjectionMode.
 vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
     FxRProjectionMode projectionMode) {
+  MOZ_ASSERT(mFxRWindow.mOverlayHandle != 0);
+
   bool isPanorama = (projectionMode == FxRProjectionMode::VIDEO_PROJECTION_360);
   bool isStereoPanorama =
       (projectionMode == FxRProjectionMode::VIDEO_PROJECTION_360S);
@@ -750,6 +761,8 @@ void FxRWindowManager::ToggleProjectionMode() {
 }
 
 void FxRWindowManager::EnsureTransportControls() {
+  MOZ_ASSERT(mIsInFullscreen);
+
   vr::VROverlayError overlayError;
   // Setup the window if it doesn't already exist
   if (mTransportWindow.mOverlayHandle == 0) {
@@ -805,7 +818,23 @@ void FxRWindowManager::HideTransportControls() {
 
   vr::VROverlayError overlayError =
       vr::VROverlay()->HideOverlay(mTransportWindow.mOverlayHandle);
-  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
+  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
   mozilla::Unused << overlayError;
+}
+
+void FxRWindowManager::ToggleTransportControlsVisibility() {
+  if (mIsInFullscreen && mTransportWindow.mOverlayHandle != 0) {
+    vr::VROverlayError overlayError;
+    if (vr::VROverlay()->IsOverlayVisible(mTransportWindow.mOverlayHandle)) {
+      overlayError =
+          vr::VROverlay()->HideOverlay(mTransportWindow.mOverlayHandle);
+    } else {
+      overlayError =
+          vr::VROverlay()->ShowOverlay(mTransportWindow.mOverlayHandle);
+    }
+
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+    mozilla::Unused << overlayError;
+  }
 }
