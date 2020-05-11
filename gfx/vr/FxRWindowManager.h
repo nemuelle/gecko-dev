@@ -88,6 +88,8 @@ class FxRWindowManager final {
   void SetProjectionMode(const nsAString& aMode);
 
  private:
+  FxRWindowManager();
+
   static void InitWindow(FxRWindow& newWindow, nsPIDOMWindowOuter* aWindow);
   static void CleanupWindow(FxRWindow& fxrWindow);
   FxRWindow& GetFxrWindowFromWidget(nsIWidget* widget);
@@ -95,7 +97,7 @@ class FxRWindowManager final {
                               float width);
 
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
-  static DWORD WINAPI OverlayInputPump(_In_ LPVOID lpParameter);
+  static DWORD WINAPI OverlayInputPump(LPVOID lpParameter);
   void CollectOverlayEvents(FxRWindow& fxrWindow);
 
   void HandleMouseEvent(FxRWindow& fxrWindow, nsWindow* window,
@@ -108,8 +110,7 @@ class FxRWindowManager final {
   void ToggleMedia();
   void EnsureTransportControls();
   void HideTransportControls();
-
-  FxRWindowManager();
+  void ToggleTransportControlsVisibility();
 
   vr::VROverlayError ChangeProjectionMode(FxRProjectionMode projectionMode);
   void ToggleProjectionMode();
@@ -127,6 +128,8 @@ class FxRWindowManager final {
   // created.
   FxRWindow mFxRWindow;
   FxRWindow mTransportWindow;
+
+  bool mIsInFullscreen;
 
   // Members for projection mode toggling
   int mCurrentProjectionIndex = 0;
