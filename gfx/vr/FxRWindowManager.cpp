@@ -46,7 +46,7 @@ FxRWindowManager::FxRWindowManager()
 FxRWindowManager::~FxRWindowManager() {
   MOZ_ASSERT(mFxRWindow.mOverlayHandle == 0);
   MOZ_ASSERT(mOverlayPumpThread == nullptr);
-  MOZ_ASSERT(mFxRWindow.mTransportControlsOverlayHandle == 0);
+  MOZ_ASSERT(mTransportWindow.mOverlayHandle == 0);
 }
 
 // Initialize an instance of OpenVR for the window manager
@@ -250,71 +250,6 @@ bool FxRWindowManager::CreateOverlayForWindow(FxRWindow& newWindow,
   }
 }
 
-vr::VROverlayError FxRWindowManager::CreateTransportControlsOverlay() {
-  std::string sKey = std::string("Firefox Reality Transport Controls");
-  vr::VROverlayError overlayError = vr::VROverlay()->CreateOverlay(
-      sKey.c_str(), sKey.c_str(), &mFxRWindow.mTransportControlsOverlayHandle);
-
-  // Place the transport controls just in front of the window
-  if (overlayError == vr::VROverlayError_None) {
-    vr::HmdMatrix34_t transform = {
-        1.0f, 0.0f, 0.0f, 0.0f,  // no move in x direction
-        0.0f, 1.0f, 0.0f, 1.0f,  // +y to move it up
-        0.0f, 0.0f, 1.0f, -1.0f  // -z to move it forward from the origin
-    };
-
-    overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
-        mFxRWindow.mTransportControlsOverlayHandle,
-        vr::TrackingUniverseStanding, &transform);
-    if (overlayError == vr::VROverlayError_None) {
-      // Use placeholder image for the transport controls overlay
-      std::string overlayImagePath =
-          Path_StripFilename(Path_GetExecutablePath())
-              .append(
-                  "\\browser\\chrome\\browser\\content\\branding\\about.png");
-
-      overlayError = vr::VROverlay()->SetOverlayFromFile(
-          mFxRWindow.mTransportControlsOverlayHandle, overlayImagePath.c_str());
-      if (overlayError == vr::VROverlayError_None) {
-        overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-            mFxRWindow.mTransportControlsOverlayHandle, 0.5f);
-        if (overlayError == vr::VROverlayError_None) {
-          overlayError = vr::VROverlay()->SetOverlayFlag(
-              mFxRWindow.mTransportControlsOverlayHandle,
-              vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible, true);
-
-          if (overlayError == vr::VROverlayError_None) {
-            overlayError = vr::VROverlay()->SetOverlayInputMethod(
-                mFxRWindow.mTransportControlsOverlayHandle,
-                vr::VROverlayInputMethod_Mouse);
-
-            if (overlayError == vr::VROverlayError_None) {
-              // Finally, show the prepared overlay
-              overlayError = vr::VROverlay()->ShowOverlay(
-                  mFxRWindow.mTransportControlsOverlayHandle);
-              MOZ_ASSERT(overlayError == vr::VROverlayError_None);
-
-              if (overlayError == vr::VROverlayError_None) {
-                // Now, start listening for input...
-                overlayError = SetupOverlayInput(
-                    mFxRWindow.mTransportControlsOverlayHandle);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (overlayError != vr::VROverlayError_None) {
-    vr::VROverlayError destroyError = vr::VROverlay()->DestroyOverlay(
-        mFxRWindow.mTransportControlsOverlayHandle);
-    MOZ_ASSERT(destroyError == vr::VROverlayError_None);
-    mFxRWindow.mTransportControlsOverlayHandle = 0;
-  }
-  return overlayError;
-}
-
 /* FxRWindow Input management */
 
 // Creates a new thread dedicated to polling input from OpenVR. See
@@ -420,16 +355,6 @@ void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
     }
   }
 
-  if (mFxRWindow.mTransportControlsOverlayHandle != 0) {
-    while (vr::VROverlay()->PollNextOverlayEvent(
-        mFxRWindow.mTransportControlsOverlayHandle, &vrEvent,
-        sizeof(vrEvent))) {
-      if (vrEvent.eventType == vr::VREvent_MouseButtonDown) {
-        ToggleProjectionMode();
-        break;
-      }
-    }
-  }
   // Post message to UI thread that new events are waiting
   // TODO: cross-plat notification
   if (initiallyEmpty && !fxrWindow.mEventsVector.empty()) {
@@ -720,9 +645,9 @@ void FxRWindowManager::ToggleMedia() {
       mozilla::dom::MediaControlService::GetService();
   mozilla::dom::MediaControlKeysEventSource* source =
       service->GetMediaControlKeysEventSource();
-  mozilla::dom::PlaybackState state = source->GetPlaybackState();
+  mozilla::dom::MediaSessionPlaybackState state = source->GetPlaybackState();
 
-  if (state == mozilla::dom::PlaybackState::ePlaying) {
+  if (state == mozilla::dom::MediaSessionPlaybackState::Playing) {
     service->GetMediaControlKeysEventSource()->OnKeyPressed(
         mozilla::dom::MediaControlKeysEvent::ePause);
   } else {
