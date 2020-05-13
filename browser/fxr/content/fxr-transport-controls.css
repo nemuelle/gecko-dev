@@ -26,6 +26,10 @@ body {
   background-image: url("assets/icon-playpause-stopgap.svg");
 }
 
+.icon_proj_2D {
+  background-image: url("assets/icon-2d.svg");
+}
+
 .icon_proj_360 {
   background-image: url("assets/icon-360.svg");
 }
