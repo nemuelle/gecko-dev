@@ -5,8 +5,6 @@
 
 #include "FxRWindowManager.h"
 
-#include <service/openvr/src/pathtools_public.h>
-
 #include "mozilla/Assertions.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "base/platform_thread.h"
@@ -45,8 +43,8 @@ FxRWindowManager::FxRWindowManager()
 
 FxRWindowManager::~FxRWindowManager() {
   MOZ_ASSERT(mFxRWindow.mOverlayHandle == 0);
-  MOZ_ASSERT(mOverlayPumpThread == nullptr);
   MOZ_ASSERT(mTransportWindow.mOverlayHandle == 0);
+  MOZ_ASSERT(mOverlayPumpThread == nullptr);
 }
 
 // Initialize an instance of OpenVR for the window manager
@@ -343,6 +341,7 @@ void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
       case vr::VREvent_ScrollDiscrete:
       case vr::VREvent_MouseMove:
       case vr::VREvent_MouseButtonDown:
+      case vr::VREvent_MouseButtonUp:
       case vr::VREvent_ButtonPress:
       case vr::VREvent_ButtonUnpress:
       case vr::VREvent_KeyboardCharInput:
