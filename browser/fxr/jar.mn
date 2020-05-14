@@ -22,6 +22,7 @@ browser.jar:
    content/browser/fxr/prefs.js                 (content/prefs.js)
    
 
+   content/browser/fxr/assets/icon-2d.svg               (content/assets/icon-2d.svg)
    content/browser/fxr/assets/icon-360.svg              (content/assets/icon-360.svg)
    content/browser/fxr/assets/icon-3dsidebyside.svg     (content/assets/icon-3dsidebyside.svg)
    content/browser/fxr/assets/icon-backward.svg         (content/assets/icon-backward.svg)
