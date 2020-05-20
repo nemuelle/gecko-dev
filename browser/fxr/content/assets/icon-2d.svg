@@ -1,14 +1,1 @@
-<svg width="18.99991298029857" height="14.999993799949464" xmlns="http://www.w3.org/2000/svg">
- <g>
-  <title>background</title>
-  <rect height="17" width="20.9999" y="-1" x="-1" fill="none" id="canvas_background"/>
- </g>
-
- <g>
-  <title>Layer 1</title>
-  <rect height="14.625" width="1.53125" y="0.114722" x="0.4218" stroke-width="null" stroke-opacity="null" stroke="null" fill="#ffffff" id="svg_15"/>
-  <rect height="14.625" width="1.53125" y="0.145972" x="16.9843" stroke-width="null" stroke-opacity="null" stroke="null" fill="#ffffff" id="svg_12"/>
-  <rect height="1.71875" width="18" y="0.145972" x="0.515568" stroke-width="null" stroke-opacity="null" stroke="null" fill="#ffffff" id="svg_11"/>
-  <rect height="1.71875" width="18" y="13.0522" x="0.515568" stroke-width="null" stroke-opacity="null" stroke="null" fill="#ffffff" id="svg_16"/>
- </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><g id="Layer_2" data-name="Layer 2"><path d="M184.9,24.29H15.1a8,8,0,0,0-8,8V167.71a8,8,0,0,0,8,8H184.9a8,8,0,0,0,8-8V32.29A8,8,0,0,0,184.9,24.29ZM23.1,159.71V40.29H176.9V159.71Z"/></g></svg>
