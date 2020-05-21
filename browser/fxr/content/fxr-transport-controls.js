@@ -19,6 +19,7 @@ function setupTransportButtons() {
     "eProjection360",
     "eProjection360Stereo",
     "eProjection3D",
+    "eProjection2D",
   ];
 
   function transportButtonHandler(e) {
@@ -41,6 +42,10 @@ function setupTransportButtons() {
           
       case "eProjection3D":
         ChromeUtils.setFxrProjectionMode("3d");
+        break;
+
+      case "eProjection2D":
+        ChromeUtils.setFxrProjectionMode("2d");
         break;
     }
   }

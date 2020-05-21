@@ -613,18 +613,15 @@ void FxRWindowManager::OnFullScreenChange(uint64_t aOuterWindowID,
   if (IsFxRWindow(aOuterWindowID)) {
     mIsInFullscreen = aIsFullScreen;
 
-    vr::VROverlayError overlayError;
     if (aIsFullScreen) {
       // Create the transport controls overlay
       EnsureTransportControls();
-      overlayError = ChangeProjectionMode(VIDEO_PROJECTION_360);
     } else {
       // Close the transport controls overlay
       HideTransportControls();
-      overlayError = ChangeProjectionMode(VIDEO_PROJECTION_2D);
+      vr::VROverlayError overlayError = ChangeProjectionMode(VIDEO_PROJECTION_2D);
+      MOZ_ASSERT(overlayError == vr::VROverlayError_None);
     }
-
-    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
   }
 }
 
@@ -658,7 +655,7 @@ void FxRWindowManager::ToggleMedia() {
 // Forwarded from privileged javascript and supports changing projection mode
 // or exiting fullscreen presentation via the following arguments:
 // - "exit" - Ends the current fullscreen presentation
-// - TODO: "2d" - for Theater mode display?
+// - "2d" - for Theater mode display
 // - "360" - Maps to VIDEO_PROJECTION_360
 // - "360-stereo" - Maps to VIDEO_PROJECTION_360S
 // - "3d" - Maps to VIDEO_PROJECTION_3D
@@ -722,18 +719,15 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
           {0.0f, 0.0f, 1.0f, -3.0f}  // -z to move it forward from the origin
       }};
       if (isStereo2D) {
-        /*
-        // For stereo viewing, we want the overlay further to the user's eyes,
+        // For stereo viewing, we want the overlay further from the user's eyes,
         // as the apparent distance of the resultant 3D image is closer than a
         // 2D image
-        // TODO: are we sure this transform is used? It's redeclared in a new
-        // scope...so I presume it isn't visible outside of this scope.
-        vr::HmdMatrix34_t transform = {{
+
+        transform = {{
             {1.0f, 0.0f, 0.0f, 0.0f},  // no move in x direction
             {0.0f, 1.0f, 0.0f, 2.0f},  // +y to move it up
             {0.0f, 0.0f, 1.0f, -6.0f}  // -z to move it forward from the origin
         }};
-        */
       }
       overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
           mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding, &transform);
