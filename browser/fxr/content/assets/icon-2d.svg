@@ -1,8 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19 15" fill="context-fill">
- <g>
-  <rect height="14.625" width="1.53125" y="0.114722" x="0.4218"/>
-  <rect height="14.625" width="1.53125" y="0.145972" x="16.9843"/>
-  <rect height="1.71875" width="18" y="0.145972" x="0.515568"/>
-  <rect height="1.71875" width="18" y="13.0522" x="0.515568"/>
- </g>
-</svg>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at https://mozilla.org/MPL/2.0/. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="context-fill"><g><path d="M184.9,24.29H15.1a8,8,0,0,0-8,8V167.71a8,8,0,0,0,8,8H184.9a8,8,0,0,0,8-8V32.29A8,8,0,0,0,184.9,24.29ZM23.1,159.71V40.29H176.9V159.71Z"/></g></svg>
