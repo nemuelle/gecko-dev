@@ -45,15 +45,16 @@ var FullScreen = {
     // Get the mozVideoProjection query string if there is one, and use it to set the projection mode for FxR
     // See: https://github.com/MozillaReality/FirefoxReality/wiki/Media-Playback
     // NOTE: Currently "Stereo 180 Left to Right" and "Stereo 180 Top to Bottom" are unsupported
-    var currentFullscreenURI = document.fullscreenElement.currentURI;
+    let currentFullscreenURI = document.fullscreenElement.currentURI;
     if (currentFullscreenURI &&
         currentFullscreenURI.query
     )
     {
-      var mozVideoProjectionIndex = currentFullscreenURI.query.indexOf("mozVideoProjection=");
-      if (mozVideoProjectionIndex != -1)
+      const searchParams = new URLSearchParams(currentFullscreenURI.query);
+
+      if (searchParams.has("mozVideoProjection") == true)
       {
-        var projectionMode = currentFullscreenURI.query.substring(currentFullscreenURI.query.indexOf("mozVideoProjection=") + 19);
+        let projectionMode = searchParams.get("mozVideoProjection=");
         switch (projectionMode) {
           case "360_auto":
             ChromeUtils.setFxrProjectionMode("360");

@@ -615,15 +615,13 @@ void FxRWindowManager::OnFullScreenChange(uint64_t aOuterWindowID,
 
     if (aIsFullScreen) {
       // Create the transport controls overlay
-		EnsureTransportControls();
+      EnsureTransportControls();
     } else {
       // Close the transport controls overlay
       HideTransportControls();
       vr::VROverlayError overlayError = ChangeProjectionMode(VIDEO_PROJECTION_2D);
-	  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+      MOZ_ASSERT(overlayError == vr::VROverlayError_None);
     }
-
-    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
   }
 }
 
