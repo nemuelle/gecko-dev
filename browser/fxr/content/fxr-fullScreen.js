@@ -42,6 +42,38 @@ var FullScreen = {
       return;
     }
 
+    // Get the mozVideoProjection query string if there is one, and use it to set the projection mode for FxR
+    // See: https://github.com/MozillaReality/FirefoxReality/wiki/Media-Playback
+    // NOTE: Currently "Stereo 180 Left to Right" and "Stereo 180 Top to Bottom" are unsupported
+    var currentFullscreenURI = document.fullscreenElement.currentURI;
+    if (currentFullscreenURI &&
+        currentFullscreenURI.query
+    )
+    {
+      var mozVideoProjectionIndex = currentFullscreenURI.query.indexOf("mozVideoProjection=");
+      if (mozVideoProjectionIndex != -1)
+      {
+        var projectionMode = currentFullscreenURI.query.substring(currentFullscreenURI.query.indexOf("mozVideoProjection=") + 19);
+        switch (projectionMode) {
+          case "360_auto":
+            ChromeUtils.setFxrProjectionMode("360");
+            break;
+
+          case "360s_auto":
+            ChromeUtils.setFxrProjectionMode("360-stereo");
+            break;
+
+          case "3d_auto":
+            ChromeUtils.setFxrProjectionMode("3d");
+            break;
+
+          default:
+            ChromeUtils.setFxrProjectionMode("2d");
+            break;
+        }
+      }
+    }
+
     // If it is a remote browser, send a message to ask the content
     // to enter fullscreen state. We don't need to do so if it is an
     // in-process browser, since all related document should have
