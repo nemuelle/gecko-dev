@@ -54,7 +54,7 @@ var FullScreen = {
 
       if (searchParams.has("mozVideoProjection") == true)
       {
-        let projectionMode = searchParams.get("mozVideoProjection=");
+        let projectionMode = searchParams.get("mozVideoProjection");
         switch (projectionMode) {
           case "360_auto":
             ChromeUtils.setFxrProjectionMode("360");
