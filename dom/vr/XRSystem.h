@@ -136,6 +136,7 @@ class XRSystem final : public DOMEventTargetHelper,
   void NotifyPresentationGenerationChanged(uint32_t aDisplayID) override;
   void NotifyEnumerationCompleted() override;
   void NotifyDetectRuntimesCompleted() override;
+  void NotifyExitPresentFromController() override;
   bool GetStopActivityStatus() const override;
 
  private:
