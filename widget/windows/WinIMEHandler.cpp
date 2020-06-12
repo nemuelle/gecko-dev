@@ -769,7 +769,6 @@ void IMEHandler::MaybeShowOnScreenKeyboard(nsWindow* aWindow,
 
 // static
 void IMEHandler::MaybeDismissOnScreenKeyboard(nsWindow* aWindow, Sync aSync) {
-#ifdef NIGHTLY_BUILD
   if (FxRWindowManager::GetInstance()->IsFxRWindow(aWindow)) {
     FxRWindowManager::GetInstance()->HideVirtualKeyboard();
   }
