@@ -66,9 +66,8 @@ class FxRWindowManager final {
   ~FxRWindowManager();
 
   bool VRinit();
-  bool CreateOverlayForWindow();
-  vr::VROverlayError CreateTransportControlsOverlay();
   void SetRenderPid(uint64_t aOverlayId, uint32_t aPid);
+  void EnsureSameDXGIAdapter();
   uint64_t GetOverlayId() const;
 
   bool AddWindow(nsPIDOMWindowOuter* aWindow);
@@ -95,6 +94,8 @@ class FxRWindowManager final {
   bool CreateOverlayForWindow(FxRWindow& newWindow, const char* name,
                               float width);
 
+  void ResetToOpenVRDevice();
+
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
   static DWORD WINAPI OverlayInputPump(LPVOID lpParameter);
   void CollectOverlayEvents(FxRWindow& fxrWindow);
@@ -117,6 +118,7 @@ class FxRWindowManager final {
   // Members for OpenVR
   vr::IVRSystem* mVrApp;
   int32_t mDxgiAdapterIndex;
+  mozilla::Atomic<bool> mDeviceResetRequested;
 
   // Members for Input
   mozilla::Atomic<bool> mIsOverlayPumpActive;

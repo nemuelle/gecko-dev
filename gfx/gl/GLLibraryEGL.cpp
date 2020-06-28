@@ -162,18 +162,17 @@ static EGLDisplay GetAndInitWARPDisplay(GLLibraryEGL& egl, void* displayType) {
   return display;
 }
 
-static EGLDisplay GetAndInitDisplayForWebRender(GLLibraryEGL& egl,
+static EGLDisplay GetAndInitDisplayOnDXGIDevice(GLLibraryEGL& egl,
+                                                ID3D11Device* d3d11Device,
                                                 void* displayType) {
 #ifdef XP_WIN
   const EGLint attrib_list[] = {LOCAL_EGL_NONE};
-  RefPtr<ID3D11Device> d3d11Device =
-      gfx::DeviceManagerDx::Get()->GetCompositorDevice();
   if (!d3d11Device) {
-    gfxCriticalNote << "Failed to get compositor device for EGLDisplay";
+    gfxCriticalNote << "Failed to get device for EGLDisplay";
     return EGL_NO_DISPLAY;
   }
   EGLDeviceEXT eglDevice = egl.fCreateDeviceANGLE(
-      LOCAL_EGL_D3D11_DEVICE_ANGLE, reinterpret_cast<void*>(d3d11Device.get()),
+      LOCAL_EGL_D3D11_DEVICE_ANGLE, reinterpret_cast<void*>(d3d11Device),
       nullptr);
   if (!eglDevice) {
     gfxCriticalNote << "Failed to get EGLDeviceEXT of D3D11Device";
@@ -286,7 +285,17 @@ static EGLDisplay GetAndInitDisplayForAccelANGLE(
   EGLDisplay ret = 0;
 
   if (wr::RenderThread::IsInRenderThread()) {
-    return GetAndInitDisplayForWebRender(egl, EGL_DEFAULT_DISPLAY);
+    RefPtr<ID3D11Device> d3d11Device =
+      gfx::DeviceManagerDx::Get()->GetCompositorDevice();
+    return GetAndInitDisplayOnDXGIDevice(egl, d3d11Device, EGL_DEFAULT_DISPLAY);
+  }
+  else if (!gfx::DeviceManagerDx::Get()->IsDefaultDXGIAdapter()) {
+    // TODO: Ask GFX team about preferred way to determine when to provide a
+    // device on a specific adapter for FxR.
+    RefPtr<ID3D11Device> d3d11Device =
+      gfx::DeviceManagerDx::Get()->GetContentDevice();
+
+    return GetAndInitDisplayOnDXGIDevice(egl, d3d11Device, EGL_DEFAULT_DISPLAY);
   }
 
   gfx::FeatureState& d3d11ANGLE =

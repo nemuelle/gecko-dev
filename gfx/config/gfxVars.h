@@ -62,7 +62,9 @@ class gfxVarReceiver;
   _(UseDoubleBufferingWithCompositor, bool, false)                 \
   _(UseGLSwizzle, bool, true)                                      \
   _(ForceSubpixelAAWherePossible, bool, false)                     \
-  _(DwmCompositionEnabled, bool, true)
+  _(DwmCompositionEnabled, bool, true)                             \
+  _(AllowSacrificingSubpixelAA, bool, false)                       \
+  _(DXGIAdapterIndex, int32_t, 0)
 
 /* Add new entries above this line. */
 
