@@ -9,6 +9,7 @@
 #include "VRShMem.h"
 #include "openvr.h"
 
+vr::IVRSystem* FxROutputHandler::s_pHMD = nullptr;
 
 FxROutputHandler::FxROutputHandler(uint64_t aOverlayId)
   : mOverlayId(aOverlayId) {
@@ -30,36 +31,37 @@ bool FxROutputHandler::GetSize(uint32_t& aWidth, uint32_t& aHeight) const {
 // bootstrap process.
 bool FxROutputHandler::TryInitialize(IDXGISwapChain* aSwapChain,
                                      ID3D11Device* aDevice) {
-  if (mSwapChain == nullptr) {
+  if (mSwapChain != aSwapChain) {
     vr::EVRInitError eError = vr::VRInitError_None;
-    if (m_pHMD == nullptr) {
-      m_pHMD = vr::VR_Init(&eError, vr::VRApplication_Overlay);
-      if (eError == vr::VRInitError_None) {
-        // The texture is successfully created and shared, so cache a
-        // pointer to the swapchain to indicate this success.
-        mSwapChain = aSwapChain;
+    if (s_pHMD == nullptr) {
+      s_pHMD = vr::VR_Init(&eError, vr::VRApplication_Overlay);
+    }
 
-        ID3D11Texture2D* texOrig = nullptr;
-        HRESULT hr = mSwapChain->GetBuffer(0, IID_PPV_ARGS(&texOrig));
-        if (hr == S_OK) {
-          D3D11_TEXTURE2D_DESC desc;
-          texOrig->GetDesc(&desc);
+    if (eError == vr::VRInitError_None) {
+      // The texture is successfully created and shared, so cache a
+      // pointer to the swapchain to indicate this success.
+      mSwapChain = aSwapChain;
 
-          mLastWidth = desc.Width;
-          mLastHeight = desc.Height;
+      ID3D11Texture2D* texOrig = nullptr;
+      HRESULT hr = mSwapChain->GetBuffer(0, IID_PPV_ARGS(&texOrig));
+      if (hr == S_OK) {
+        D3D11_TEXTURE2D_DESC desc;
+        texOrig->GetDesc(&desc);
 
-          // In order to properly process mouse events from the controller, set
-          // the mouse scale based on the size of the window texture
-          vr::HmdVector2_t vecWindowSize = { (float)mLastWidth,
-                                             (float)mLastHeight };
+        mLastWidth = desc.Width;
+        mLastHeight = desc.Height;
 
-          vr::EVROverlayError error = vr::VROverlay()->SetOverlayMouseScale(
-            mOverlayId, &vecWindowSize);
-          MOZ_ASSERT(error == vr::VROverlayError_None);
-          mozilla::Unused << error;
+        // In order to properly process mouse events from the controller, set
+        // the mouse scale based on the size of the window texture
+        vr::HmdVector2_t vecWindowSize = {(float)mLastWidth,
+                                          (float)mLastHeight};
 
-          texOrig->Release();
-        }
+        vr::EVROverlayError error =
+            vr::VROverlay()->SetOverlayMouseScale(mOverlayId, &vecWindowSize);
+        MOZ_ASSERT(error == vr::VROverlayError_None);
+        mozilla::Unused << error;
+
+        texOrig->Release();
       }
     }
   } else {
