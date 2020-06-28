@@ -61,7 +61,8 @@ class gfxVarReceiver;
   _(RemoteCanvasEnabled, bool, false)                              \
   _(UseDoubleBufferingWithCompositor, bool, false)                 \
   _(UseGLSwizzle, bool, true)                                      \
-  _(AllowSacrificingSubpixelAA, bool, false)
+  _(AllowSacrificingSubpixelAA, bool, false)                       \
+  _(DXGIAdapterIndex, int32_t, 0)
 
 /* Add new entries above this line. */
 

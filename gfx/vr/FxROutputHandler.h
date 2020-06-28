@@ -18,6 +18,7 @@ namespace vr {
 #include <d3d11_1.h>
 
 #include "mozilla/RefPtr.h"
+#include "openvr.h"
 
 // FxROutputHandler is responsible for managing resources to share a Desktop
 // browser window with a Firefox Reality VR window.
@@ -33,7 +34,10 @@ class FxROutputHandler final {
   bool GetSize(uint32_t& aWidth, uint32_t& aHeight) const;
 
  private:
-  vr::IVRSystem * m_pHMD = nullptr;
+  // Until proper integration with VRProcess, make sure this is a static
+  // singleton. It's possible for multiple output handlers to be created if
+  // there is a device reset, or when multiple windows are supported.
+  static vr::IVRSystem* s_pHMD;
   uint64_t mOverlayId = 0;
   RefPtr<IDXGISwapChain> mSwapChain = nullptr;
   // Cache the width/height from the last initialization for easy retrieval
