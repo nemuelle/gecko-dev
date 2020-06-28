@@ -148,7 +148,7 @@ class GPUProcessManager final : public GPUProcessHost::Listener {
 
   void OnProcessLaunchComplete(GPUProcessHost* aHost) override;
   void OnProcessUnexpectedShutdown(GPUProcessHost* aHost) override;
-  void SimulateDeviceReset();
+  void SimulateDeviceReset(int32_t aAdapterIndex = -1);
   void DisableWebRender(wr::WebRenderError aError);
   void NotifyWebRenderError(wr::WebRenderError aError);
   void OnInProcessDeviceReset();

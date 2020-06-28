@@ -660,10 +660,15 @@ egl::Error Renderer11::initialize()
     return egl::NoError();
 }
 
+static IDXGIAdapter* s_pAdapter = nullptr;
+
+
 HRESULT Renderer11::callD3D11CreateDevice(PFN_D3D11_CREATE_DEVICE createDevice, bool debug)
 {
     return createDevice(
-        nullptr, mRequestedDriverType, nullptr, debug ? D3D11_CREATE_DEVICE_DEBUG : 0,
+      s_pAdapter, 
+      D3D_DRIVER_TYPE_UNKNOWN, //mRequestedDriverType,
+      nullptr, debug ? D3D11_CREATE_DEVICE_DEBUG : 0,
         mAvailableFeatureLevels.data(), static_cast<unsigned int>(mAvailableFeatureLevels.size()),
         D3D11_SDK_VERSION, &mDevice, &(mRenderer11DeviceCaps.featureLevel), &mDeviceContext);
 }
@@ -676,6 +681,7 @@ egl::Error Renderer11::initializeD3DDevice()
     {
 #if !defined(ANGLE_ENABLE_WINDOWS_STORE)
         PFN_D3D11_CREATE_DEVICE D3D11CreateDevice = nullptr;
+        decltype(CreateDXGIFactory)* createDXGIFactory = nullptr;
         {
             ANGLE_TRACE_EVENT0("gpu.angle", "Renderer11::initialize (Load DLLs)");
             mDxgiModule  = LoadLibrary(TEXT("dxgi.dll"));
@@ -698,6 +704,10 @@ egl::Error Renderer11::initializeD3DDevice()
                 return egl::EglNotInitialized(D3D11_INIT_MISSING_DEP)
                        << "Could not retrieve D3D11CreateDevice address.";
             }
+
+            createDXGIFactory =
+              (decltype(CreateDXGIFactory)*)GetProcAddress(mDxgiModule,
+                "CreateDXGIFactory1");
         }
 #endif
 
@@ -726,7 +736,21 @@ egl::Error Renderer11::initializeD3DDevice()
         {
             ANGLE_TRACE_EVENT0("gpu.angle", "D3D11CreateDevice");
 
-            result = callD3D11CreateDevice(D3D11CreateDevice, false);
+            if (s_pAdapter == nullptr) {
+              IDXGIFactory1* factory;
+              createDXGIFactory(IID_PPV_ARGS(&factory));
+
+              wchar_t buf[10] = { 0 };
+              ::GetEnvironmentVariable(L"FXR_DXGI_ADAPTER", buf, ARRAYSIZE(buf));
+              int index = wcstol(buf, nullptr, 10);
+
+              IDXGIAdapter1* adapter = nullptr;
+              factory->EnumAdapters1(index, &adapter);
+              adapter->QueryInterface(IID_PPV_ARGS(&s_pAdapter));
+              //factory->Release();
+            }
+
+            result = callD3D11CreateDevice(D3D11CreateDevice, true);
 
             if (result == E_INVALIDARG && mAvailableFeatureLevels.size() > 1u &&
                 mAvailableFeatureLevels[0] == D3D_FEATURE_LEVEL_11_1)

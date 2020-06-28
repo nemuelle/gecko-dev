@@ -442,6 +442,15 @@ void DeviceManagerDx::CreateContentDevices() {
   }
 }
 
+uint32_t DeviceManagerDx::GetDXGIAdapterIndex() {
+  int32_t index = gfxVars::DXGIAdapterIndex();
+  if (index == DXGI_ADAPTER_UNSPECIFIED) {
+    return DXGI_ADAPTER_DEFAULT;
+  } else {
+    return index;
+  }
+}
+
 IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
   if (mAdapter) {
     return mAdapter;
@@ -470,7 +479,8 @@ IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
   if (!mDeviceStatus) {
     // If we haven't created a device yet, and have no existing device status,
     // then this must be the compositor device. Pick the first adapter we can.
-    if (FAILED(factory1->EnumAdapters1(0, getter_AddRefs(mAdapter)))) {
+    if (FAILED(factory1->EnumAdapters1(GetDXGIAdapterIndex(),
+                                       getter_AddRefs(mAdapter)))) {
       return nullptr;
     }
   } else {
@@ -498,6 +508,11 @@ IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
           desc.VendorId == preferred.VendorId &&
           desc.DeviceId == preferred.DeviceId) {
         mAdapter = adapter.forget();
+
+        wchar_t buf[10] = { 0 };
+        swprintf(buf, ARRAYSIZE(buf), L"%d", index);
+        ::SetEnvironmentVariable(L"FXR_DXGI_ADAPTER", buf);
+
         break;
       }
     }
