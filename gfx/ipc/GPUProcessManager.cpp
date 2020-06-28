@@ -430,7 +430,11 @@ void GPUProcessManager::ResetCompositors() {
   SimulateDeviceReset();
 }
 
-void GPUProcessManager::SimulateDeviceReset() {
+void GPUProcessManager::SimulateDeviceReset(int32_t aAdapterIndex) {
+  if (aAdapterIndex != -1) {
+    gfxVars::SetDXGIAdapterIndex(aAdapterIndex);
+  }
+
   // Make sure we rebuild environment and configuration for accelerated
   // features.
   gfxPlatform::GetPlatform()->CompositorUpdated();

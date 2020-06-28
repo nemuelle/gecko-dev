@@ -66,7 +66,9 @@ class gfxVarReceiver;
   _(DwmCompositionEnabled, bool, true)                             \
   _(FxREmbedded, bool, false)                                      \
   _(UseAHardwareBufferContent, bool, false)                        \
-  _(UseEGL, bool, false)
+  _(UseEGL, bool, false)                                           \
+  _(AllowSacrificingSubpixelAA, bool, false)                       \
+  _(DXGIAdapterIndex, int32_t, 0)
 
 /* Add new entries above this line. */
 

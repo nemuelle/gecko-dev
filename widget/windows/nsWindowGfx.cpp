@@ -450,6 +450,8 @@ void nsWindow::CreateCompositor() {
     );
     // Forward the overlay ID to the compositor
     GetRemoteRenderer()->SendRequestFxrOutput(mFxrOverlayId);
+
+    FxRWindowManager::GetInstance()->EnsureSameDXGIAdapter();
   }
 }
 

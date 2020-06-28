@@ -16,6 +16,8 @@
 #include "WinMouseScrollHandler.h"
 
 #include "mozilla/dom/MediaControlService.h"
+#include "mozilla/gfx/GPUProcessManager.h"
+#include "mozilla/gfx/DeviceManagerDx.h"
 
 static mozilla::StaticAutoPtr<FxRWindowManager> sFxrWinMgrInstance;
 // To view console logging output for FxRWindowManager, add
@@ -35,6 +37,7 @@ FxRWindowManager* FxRWindowManager::GetInstance() {
 FxRWindowManager::FxRWindowManager()
     : mVrApp(nullptr),
       mDxgiAdapterIndex(-1),
+      mDeviceResetRequested(false),
       mIsOverlayPumpActive(false),
       mOverlayPumpThread(nullptr),
       mFxRWindow({0}),
@@ -74,6 +77,35 @@ void FxRWindowManager::SetRenderPid(uint64_t aOverlayId, uint32_t aPid) {
       vr::VROverlay()->SetOverlayRenderingPid(aOverlayId, aPid);
   MOZ_ASSERT(overlayError == vr::VROverlayError_None);
   mozilla::Unused << overlayError;
+}
+
+// For Multi-GPU systems (i.e., laptops with both integrated and discrete GPU),
+// Firefox may have a different default GPU than OpenVR, which will cause a
+// failure to render the overlay into the HMD.
+// Ensure that Firefox uses the same GPU as OpenVR (see ResetToOpenVRDevice)
+// when there are different DXGIAdapters involved.
+void FxRWindowManager::EnsureSameDXGIAdapter() {
+  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+          ("FxRWindowManager:EnsureSameDXGIAdapter called", nullptr));
+
+  if (!mDeviceResetRequested) {
+    uint32_t currentIndex =
+        mozilla::gfx::DeviceManagerDx::Get()->GetDXGIAdapterIndex();
+
+    if (mDxgiAdapterIndex != currentIndex) {
+      MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+              ("FxRWindowManager:EnsureSameDXGIAdapter requested from %d to %d",
+               currentIndex, mDxgiAdapterIndex));
+      mDeviceResetRequested = true;
+      ::PostMessage(mFxRWindow.mHwndWidget, MOZ_WM_OPENVR_EVENT, 0, 0);
+    }
+  }
+}
+
+void FxRWindowManager::ResetToOpenVRDevice() {
+  mDeviceResetRequested = false;
+  mozilla::gfx::GPUProcessManager::Get()->SimulateDeviceReset(
+      mDxgiAdapterIndex);
 }
 
 /* FxRWindow Helper Methods */
@@ -371,6 +403,11 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
   // See note above SynthesizeNativeMouseScrollEvent for reasoning
   bool hasScrolled = false;
 
+  if (mDeviceResetRequested) {
+    ResetToOpenVRDevice();
+    return;
+  }
+
   FxRWindow& fxrWindow = GetFxrWindowFromWidget(window);
   
   // Acquire CS
@@ -621,6 +658,7 @@ void FxRWindowManager::OnFullScreenChange(uint64_t aOuterWindowID,
       HideTransportControls();
       vr::VROverlayError overlayError = ChangeProjectionMode(VIDEO_PROJECTION_2D);
       MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+      mozilla::Unused << overlayError;
     }
   }
 }

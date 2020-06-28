@@ -441,6 +441,19 @@ void DeviceManagerDx::CreateContentDevices() {
   }
 }
 
+uint32_t DeviceManagerDx::GetDXGIAdapterIndex() {
+  int32_t index = gfxVars::DXGIAdapterIndex();
+  if (index == DXGI_ADAPTER_UNSPECIFIED) {
+    return DXGI_ADAPTER_DEFAULT;
+  } else {
+    return index;
+  }
+}
+
+bool DeviceManagerDx::IsDefaultDXGIAdapter() {
+  return GetDXGIAdapterIndex() == DXGI_ADAPTER_DEFAULT;
+}
+
 IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
   if (mAdapter) {
     return mAdapter;
@@ -469,7 +482,8 @@ IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
   if (!mDeviceStatus) {
     // If we haven't created a device yet, and have no existing device status,
     // then this must be the compositor device. Pick the first adapter we can.
-    if (FAILED(factory1->EnumAdapters1(0, getter_AddRefs(mAdapter)))) {
+    if (FAILED(factory1->EnumAdapters1(GetDXGIAdapterIndex(),
+                                       getter_AddRefs(mAdapter)))) {
       return nullptr;
     }
   } else {

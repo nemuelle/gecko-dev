@@ -294,8 +294,9 @@ void LayerManagerMLGPU::Composite() {
 
   AUTO_PROFILER_LABEL("LayerManagerMLGPU::Composite", GRAPHICS);
 
-  // Don't composite if we're minimized/hidden, or if there is nothing to draw.
-  if (mWidget->IsHidden()) {
+  // Don't composite if we're minimized/hidden, or if there is nothing to draw
+  // unless this is rendering for Firefox Reality on PC.
+  if (mWidget->IsHidden() && !mWidget->AsWindows()->HasFxrOutputHandler()) {
     return;
   }
 
