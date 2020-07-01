@@ -69,6 +69,9 @@ static const int kVRControllerMaxAxis = 16;
 static const int kVRLayerMaxCount = 8;
 static const int kVRHapticsMaxCount = 32;
 
+static const int kDefaultImmersiveLayer = 0;
+static const int kDefaultOverlayLayer = 1;
+
 #if defined(__ANDROID__)
 typedef uint64_t VRLayerTextureHandle;
 #elif defined(XP_MACOSX)
@@ -461,7 +464,9 @@ enum class VRLayerTextureType : uint16_t {
 };
 
 struct VRLayer_2D_Content {
+  uint64_t mOverlayId;
   VRLayerTextureHandle textureHandle;
+  VRLayerTextureHandle texturePtr;
   VRLayerTextureType textureType;
   uint64_t frameId;
 };
@@ -524,6 +529,7 @@ struct VRBrowserState {
    */
   bool detectRuntimesOnly;
   bool presentationActive;
+  bool overlayActive;
   bool navigationTransitionActive;
   VRLayerState layerState[kVRLayerMaxCount];
   VRHapticState hapticState[kVRHapticsMaxCount];

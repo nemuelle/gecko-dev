@@ -293,7 +293,7 @@ void VRManager::NotifyVsync(const TimeStamp& aVsyncTimestamp) {
   }
 #endif
 
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   /**
@@ -515,7 +515,7 @@ void VRManager::CheckForShutdown() {
 #if !defined(MOZ_WIDGET_ANDROID)
 void VRManager::CheckForPuppetCompletion() {
   // Notify content process about completion of puppet test resets
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     for (auto iter = mManagerParentsWaitingForPuppetReset.Iter(); !iter.Done();
          iter.Next()) {
       Unused << iter.Get()->GetKey()->SendNotifyPuppetResetComplete();
@@ -534,7 +534,7 @@ void VRManager::CheckForPuppetCompletion() {
 #endif  // !defined(MOZ_WIDGET_ANDROID)
 
 void VRManager::StartFrame() {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   AUTO_PROFILER_TRACING_MARKER("VR", "GetSensorState", OTHER);
@@ -885,7 +885,7 @@ void VRManager::VibrateHaptic(uint32_t aControllerIdx, uint32_t aHapticIndex,
                               const VRManagerPromise& aPromise)
 
 {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   // VRDisplayClient::FireGamepadEvents() assigns a controller ID with
@@ -951,7 +951,7 @@ void VRManager::VibrateHaptic(uint32_t aControllerIdx, uint32_t aHapticIndex,
 }
 
 void VRManager::StopVibrateHaptic(uint32_t aControllerIdx) {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   // VRDisplayClient::FireGamepadEvents() assigns a controller ID with
@@ -975,7 +975,7 @@ void VRManager::NotifyVibrateHapticCompleted(const VRManagerPromise& aPromise) {
 }
 
 void VRManager::StartVRNavigation(const uint32_t& aDisplayID) {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   /**
@@ -997,7 +997,7 @@ void VRManager::StartVRNavigation(const uint32_t& aDisplayID) {
 
 void VRManager::StopVRNavigation(const uint32_t& aDisplayID,
                                  const TimeDuration& aTimeout) {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   if (mDisplayInfo.GetDisplayID() != aDisplayID) {
@@ -1171,7 +1171,7 @@ void VRManager::CheckWatchDog() {
    * 20hz rate, which avoids inadvertent triggering of the watchdog during
    * Oculus ASW even if every second frame is dropped.
    */
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   bool bShouldStartFrame = false;
@@ -1196,7 +1196,7 @@ void VRManager::CheckWatchDog() {
 }
 
 void VRManager::ExpireNavigationTransition() {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   if (!mVRNavigationTransitionEnd.IsNull() &&
@@ -1206,7 +1206,7 @@ void VRManager::ExpireNavigationTransition() {
 }
 
 void VRManager::UpdateHaptics(double aDeltaTime) {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   bool bNeedPush = false;
@@ -1247,7 +1247,7 @@ void VRManager::ShutdownSubmitThread() {
 }
 
 void VRManager::StartPresentation() {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   if (mBrowserState.presentationActive) {
@@ -1258,7 +1258,7 @@ void VRManager::StartPresentation() {
 
   // Indicate that we are ready to start immersive mode
   mBrowserState.presentationActive = true;
-  mBrowserState.layerState[0].type = VRLayerType::LayerType_Stereo_Immersive;
+  mBrowserState.layerState[kDefaultImmersiveLayer].type = VRLayerType::LayerType_Stereo_Immersive;
   PushState();
 
   mDisplayInfo.mDisplayState.lastSubmittedFrameId = 0;
@@ -1272,7 +1272,7 @@ void VRManager::StartPresentation() {
 }
 
 void VRManager::StopPresentation() {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   if (!mBrowserState.presentationActive) {
@@ -1324,8 +1324,12 @@ bool VRManager::IsPresenting() {
   return false;
 }
 
+bool VRManager::IsActive() const {
+  return mState == VRManagerState::Active;
+}
+
 void VRManager::SetGroupMask(uint32_t aGroupMask) {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   mDisplayInfo.mGroupMask = aGroupMask;
@@ -1335,7 +1339,7 @@ void VRManager::SubmitFrame(VRLayerParent* aLayer,
                             const layers::SurfaceDescriptor& aTexture,
                             uint64_t aFrameId, const gfx::Rect& aLeftEyeRect,
                             const gfx::Rect& aRightEyeRect) {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return;
   }
   MonitorAutoLock lock(mCurrentSubmitTaskMonitor);
@@ -1385,17 +1389,116 @@ void VRManager::SubmitFrame(VRLayerParent* aLayer,
   }
 }
 
+bool VRManager::Add2DLayer(uint64_t aOverlayId) {
+  bool reserveSkipped = false;
+  for (auto& layer : mBrowserState.layerState) {
+    if (!reserveSkipped) {
+      reserveSkipped = true;
+      continue;
+    }
+    if (layer.type == VRLayerType::LayerType_None) {
+      layer.type = VRLayerType::LayerType_2D_Content;
+      layer.layer_2d_content.mOverlayId = aOverlayId;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+VRLayerState* VRManager::Get2DLayer(uint64_t aOverlayId) {
+  for (auto& layer : mBrowserState.layerState) {
+    if (layer.type == VRLayerType::LayerType_2D_Content
+      && layer.layer_2d_content.mOverlayId == aOverlayId) {
+      return &layer;
+    }
+  }
+
+  return nullptr;
+}
+
+void VRManager::Remove2DLayer(uint64_t aOverlayId) {
+  for (auto& layer : mBrowserState.layerState) {
+    if (layer.type == VRLayerType::LayerType_2D_Content) {
+      layer.type = VRLayerType::LayerType_None;
+      layer.layer_2d_content.mOverlayId = 0;
+      // and other cleanup
+      return;
+    }
+  }
+}
+
+bool VRManager::Submit2DFrame(const layers::SurfaceDescriptor& aTexture, uint64_t aFrameId, uint64_t aOverlayId) {
+  if (!IsActive()) {
+    return false;
+  }
+
+#if defined(XP_WIN)
+  VRLayerState* layerState = Get2DLayer(aOverlayId);
+  if (layerState == nullptr) {
+    if (!Add2DLayer(aOverlayId)) {
+      return false;
+    }
+    layerState = Get2DLayer(aOverlayId);
+  }
+
+  MOZ_ASSERT(layerState->type == VRLayerType::LayerType_2D_Content);
+  VRLayer_2D_Content& layer = layerState->layer_2d_content;
+
+  switch (aTexture.type()) {
+    case SurfaceDescriptor::TSurfaceDescriptorD3D10: {
+      const SurfaceDescriptorD3D10& surf =
+        aTexture.get_SurfaceDescriptorD3D10();
+      layer.textureType =
+        VRLayerTextureType::LayerTextureType_D3D10SurfaceDescriptor;
+      layer.textureHandle = (void*)surf.handle();
+      layer.frameId = aFrameId;
+
+      break;
+    } 
+
+    default: {
+      MOZ_ASSERT(false);
+      return false;
+    }
+  }
+
+  layer.frameId = aFrameId;
+
+  PushState(true);
+
+  PullState([&]() {
+    return (mDisplayInfo.mDisplayState.lastSubmittedFrameId >= aFrameId) ||
+      mDisplayInfo.mDisplayState.suppressFrames ||
+      !mDisplayInfo.mDisplayState.isConnected;
+  });
+
+  if (mDisplayInfo.mDisplayState.suppressFrames ||
+    !mDisplayInfo.mDisplayState.isConnected) {
+    // External implementation wants to supress frames, service has shut
+    // down or hardware has been disconnected.
+    return false;
+  }
+
+  return mDisplayInfo.mDisplayState.lastSubmittedFrameSuccessful;
+#else
+  MOZ_ASSERT(false);  // Not implmented for this platform
+  return false;
+#endif
+
+}
+
 bool VRManager::SubmitFrame(const layers::SurfaceDescriptor& aTexture,
                             uint64_t aFrameId, const gfx::Rect& aLeftEyeRect,
                             const gfx::Rect& aRightEyeRect) {
-  if (mState != VRManagerState::Active) {
+  if (!IsActive()) {
     return false;
   }
 #if defined(XP_WIN) || defined(XP_MACOSX) || defined(MOZ_WIDGET_ANDROID)
-  MOZ_ASSERT(mBrowserState.layerState[0].type ==
+  MOZ_ASSERT(mBrowserState.layerState[kDefaultImmersiveLayer].type ==
              VRLayerType::LayerType_Stereo_Immersive);
   VRLayer_Stereo_Immersive& layer =
-      mBrowserState.layerState[0].layer_stereo_immersive;
+      mBrowserState.layerState[kDefaultImmersiveLayer].layer_stereo_immersive;
 
   switch (aTexture.type()) {
 #  if defined(XP_WIN)

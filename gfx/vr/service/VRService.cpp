@@ -49,6 +49,15 @@ bool IsImmersiveContentActive(const mozilla::gfx::VRBrowserState& aState) {
   return false;
 }
 
+bool IsOverlayContentActive(const mozilla::gfx::VRBrowserState& aState) {
+  for (const auto& layer : aState.layerState) {
+    if (layer.type == VRLayerType::LayerType_2D_Content) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // anonymous namespace
 
 /*static*/
@@ -267,25 +276,88 @@ void VRService::ServiceWaitForImmersive() {
   PushState(mSystemState);
   PullState(mBrowserState);
 
+  bool immersive = IsImmersiveContentActive(mBrowserState);
+  bool overlay = IsOverlayContentActive(mBrowserState);
+
   if (mSession->ShouldQuit() || mShutdownRequested) {
     // Shut down
     MessageLoop::current()->PostTask(NewRunnableMethod(
         "gfx::VRService::ServiceShutdown", this, &VRService::ServiceShutdown));
-  } else if (IsImmersiveContentActive(mBrowserState)) {
-    // Enter Immersive Mode
-    mSession->StartPresentation(mSystemState);
-    mSession->StartFrame(mSystemState);
-    PushState(mSystemState);
+  } else if (immersive || overlay) {
 
-    MessageLoop::current()->PostTask(
-        NewRunnableMethod("gfx::VRService::ServiceImmersiveMode", this,
-                          &VRService::ServiceImmersiveMode));
+    if (immersive) {
+      // Enter Immersive Mode
+      mSession->StartPresentation(mSystemState);
+      mSession->StartFrame(mSystemState);
+      PushState(mSystemState);
+
+      MessageLoop::current()->PostTask(
+          NewRunnableMethod("gfx::VRService::ServiceImmersiveMode", this,
+                            &VRService::ServiceImmersiveMode));
+    }
+
+    if (overlay) {
+      MessageLoop::current()->PostTask(
+        NewRunnableMethod("gfx::VRService::ServiceOverlayMode", this,
+          &VRService::ServiceOverlayeMode));
+    }    
   } else {
     // Continue waiting for immersive mode
     MessageLoop::current()->PostTask(
         NewRunnableMethod("gfx::VRService::ServiceWaitForImmersive", this,
                           &VRService::ServiceWaitForImmersive));
   }
+}
+
+
+void VRService::ServiceOverlayeMode() {
+  MOZ_ASSERT(IsInServiceThread());
+  MOZ_ASSERT(mSession);
+
+  //mSession->ProcessEvents(mSystemState);
+  //UpdateHaptics();
+  PushState(mSystemState);
+  PullState(mBrowserState);
+
+  if (mSession->ShouldQuit() || mShutdownRequested) {
+    // Shut down
+    MessageLoop::current()->PostTask(NewRunnableMethod(
+      "gfx::VRService::ServiceShutdown", this, &VRService::ServiceShutdown));
+    return;
+  }
+
+  uint64_t newFrameId = mBrowserState.layerState[1].layer_2d_content.frameId; //FrameIDFromBrowserState(mBrowserState);
+  if (newFrameId != mSystemState.displayState.lastSubmittedFrameId) {
+    // A new immersive frame has been received.
+    // Submit the textures to the VR system compositor.
+    bool success = false;
+    for (const auto& layer : mBrowserState.layerState) {
+      if (layer.type == VRLayerType::LayerType_2D_Content) {
+        success = mSession->Submit2DFrame(layer.layer_2d_content);
+        //break;
+      }
+    }
+
+    // Changing mLastSubmittedFrameId triggers a new frame to start
+    // rendering.  Changes to mLastSubmittedFrameId and the values
+    // used for rendering, such as headset pose, must be pushed
+    // atomically to the browser.
+    mSystemState.displayState.lastSubmittedFrameId = newFrameId;
+    mSystemState.displayState.lastSubmittedFrameSuccessful = success;
+
+    // StartFrame may block to control the timing for the next frame start
+    //mSession->StartFrame(mSystemState);
+    //mSystemState.sensorState.inputFrameID++;
+    //size_t historyIndex =
+    //  mSystemState.sensorState.inputFrameID % ArrayLength(mFrameStartTime);
+    //mFrameStartTime[historyIndex] = TimeStamp::Now();
+    //PushState(mSystemState);
+  }
+
+  // Continue immersive mode
+  MessageLoop::current()->PostTask(
+    NewRunnableMethod("gfx::VRService::ServiceOverlayMode", this,
+      &VRService::ServiceOverlayeMode));
 }
 
 void VRService::ServiceImmersiveMode() {

@@ -442,12 +442,6 @@ void nsWindow::CreateCompositor() {
   nsWindowBase::CreateCompositor();
 
   if (mFxrOverlayId > 0) {
-    // Since rendering of the Overlay will happen in another process, grant
-    // access to the GPU process PID
-    FxRWindowManager::GetInstance()->SetRenderPid(
-      mFxrOverlayId,
-      GetRemoteRenderer()->GetParentPid()
-    );
     // Forward the overlay ID to the compositor
     GetRemoteRenderer()->SendRequestFxrOutput(mFxrOverlayId);
   }

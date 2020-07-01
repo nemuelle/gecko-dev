@@ -8,6 +8,7 @@
 #include <vector>
 #include "mozilla/Atomics.h"
 #include "nsAString.h"
+#include "base/process.h"
 #include "windows.h"
 #include "openvr.h"
 
@@ -63,12 +64,13 @@ class FxRWindowManager final {
 
  public:
   static FxRWindowManager* GetInstance();
-  ~FxRWindowManager();
+  static bool HasInstance();
+  ~FxRWindowManager();  
 
   bool VRinit();
   bool CreateOverlayForWindow();
   vr::VROverlayError CreateTransportControlsOverlay();
-  void SetRenderPid(uint64_t aOverlayId, uint32_t aPid);
+  void CacheVRProcPid(base::ProcessId aPid);
   uint64_t GetOverlayId() const;
 
   bool AddWindow(nsPIDOMWindowOuter* aWindow);
@@ -91,9 +93,11 @@ class FxRWindowManager final {
 
   static void InitWindow(FxRWindow& newWindow, nsPIDOMWindowOuter* aWindow);
   static void CleanupWindow(FxRWindow& fxrWindow);
+
   FxRWindow& GetFxrWindowFromWidget(nsIWidget* widget);
   bool CreateOverlayForWindow(FxRWindow& newWindow, const char* name,
                               float width);
+  void SetRenderPid(uint64_t aOverlayId, uint32_t aPid);
 
   vr::VROverlayError SetupOverlayInput(vr::VROverlayHandle_t overlayId);
   static DWORD WINAPI OverlayInputPump(LPVOID lpParameter);
@@ -117,6 +121,8 @@ class FxRWindowManager final {
   // Members for OpenVR
   vr::IVRSystem* mVrApp;
   int32_t mDxgiAdapterIndex;
+  
+  base::ProcessId mVRProcPid;
 
   // Members for Input
   mozilla::Atomic<bool> mIsOverlayPumpActive;

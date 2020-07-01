@@ -97,6 +97,73 @@ ID3DDeviceContextState* VRSession::GetD3DDeviceContextState() {
 
 #endif  // defined(XP_WIN)
 
+bool VRSession::Submit2DFrame(const mozilla::gfx::VRLayer_2D_Content& aLayer) {
+  HRESULT hr = S_OK;
+  bool success = false;
+  if (aLayer.textureType ==
+    VRLayerTextureType::LayerTextureType_D3D10SurfaceDescriptor) {
+    static ID3D11Texture2D* dxTexture = nullptr;
+    static HANDLE dxHandle = nullptr;
+
+    if (aLayer.textureHandle == dxHandle && dxTexture != nullptr) {
+      //dxTexture->AddRef();
+    }
+    else {
+      dxHandle = nullptr;
+      if (dxTexture != nullptr) {
+        dxTexture->Release();
+        dxTexture = nullptr;
+      }
+
+      hr = mDevice->OpenSharedResource((HANDLE)aLayer.textureHandle,
+        IID_PPV_ARGS(&dxTexture));
+      if (hr == S_OK) {
+        dxHandle = aLayer.textureHandle;
+        //dxTexture->AddRef();
+      }
+    }
+
+
+    if (SUCCEEDED(hr) && dxTexture != nullptr) {
+      // Similar to LockD3DTexture in TextureD3D11.cpp
+      IDXGIKeyedMutex* mutex = nullptr;
+      hr = dxTexture->QueryInterface(IID_PPV_ARGS(&mutex));
+      if (SUCCEEDED(hr)) {
+        hr = mutex->AcquireSync(0, 1000);
+#  ifdef MOZILLA_INTERNAL_API
+        if (hr == WAIT_TIMEOUT) {
+          gfxDevCrash(LogReason::D3DLockTimeout) << "D3D lock mutex timeout";
+        }
+        else if (hr == WAIT_ABANDONED) {
+          gfxCriticalNote << "GFX: D3D11 lock mutex abandoned";
+        }
+#  endif
+        if (SUCCEEDED(hr)) {
+          success = Submit2DFrame(dxTexture, aLayer.mOverlayId);
+          hr = mutex->ReleaseSync(0);
+          if (FAILED(hr)) {
+            NS_WARNING("Failed to unlock the texture");
+          }
+        }
+        else {
+          NS_WARNING("Failed to lock the texture");
+        }
+
+        mutex->Release();
+        mutex = nullptr;
+      }
+
+      //dxTexture->Release();
+      //dxTexture = nullptr;
+    }
+    else {
+      NS_WARNING("Failed to open shared texture");
+    }
+  }
+
+    return SUCCEEDED(hr) && success;
+}
+
 bool VRSession::SubmitFrame(
     const mozilla::gfx::VRLayer_Stereo_Immersive& aLayer) {
 #if defined(XP_WIN)

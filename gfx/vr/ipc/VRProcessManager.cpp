@@ -10,6 +10,7 @@
 #include "VRChild.h"
 #include "VRGPUChild.h"
 #include "VRGPUParent.h"
+#include "FxRWindowManager.h"
 #include "mozilla/dom/ContentParent.h"
 #include "mozilla/MemoryReportingProcess.h"
 #include "mozilla/Preferences.h"
@@ -123,6 +124,12 @@ void VRProcessManager::OnProcessLaunchComplete(VRProcessParent* aParent) {
   if (!mProcess->IsConnected()) {
     DestroyProcess();
     return;
+  }
+
+  if (FxRWindowManager::HasInstance()) {
+    // Since rendering of the Overlay will happen in another process, grant
+    // access to the GPU process PID
+    FxRWindowManager::GetInstance()->CacheVRProcPid(mProcess->OtherPid());
   }
 
   // Flush any pref updates that happened during launch and weren't

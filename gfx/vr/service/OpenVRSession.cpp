@@ -1309,6 +1309,39 @@ bool OpenVRSession::SubmitFrame(
 }
 #endif
 
+bool OpenVRSession::Submit2DFrame(ID3D11Texture2D* aTexture, uint64_t aOverlayId) {
+
+  //if () {
+    D3D11_TEXTURE2D_DESC desc;
+    aTexture->GetDesc(&desc);
+
+    // In order to properly process mouse events from the controller, set
+    // the mouse scale based on the size of the window texture
+    vr::HmdVector2_t vecWindowSize = { (float)desc.Width ,
+                                        (float)desc.Height };
+
+    vr::EVROverlayError error = vr::VROverlay()->SetOverlayMouseScale(
+      aOverlayId, &vecWindowSize);
+    MOZ_ASSERT(error == vr::VROverlayError_None);
+    mozilla::Unused << error;
+  //}
+
+  vr::Texture_t overlayTextureDX11 = {
+    aTexture,
+    vr::TextureType_DirectX,
+    vr::ColorSpace_Auto
+  };
+
+  error = vr::VROverlay()->SetOverlayTexture(
+    aOverlayId,
+    &overlayTextureDX11
+  );
+
+  MOZ_ASSERT(error == vr::VROverlayError_None);
+  
+  return error == vr::VROverlayError_None;
+}
+
 bool OpenVRSession::SubmitFrame(const VRLayerTextureHandle& aTextureHandle,
                                 ::vr::ETextureType aTextureType,
                                 const VRLayerEyeRect& aLeftEyeRect,

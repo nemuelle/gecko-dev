@@ -80,6 +80,7 @@ class VRService {
   void ServiceShutdown();
   void ServiceWaitForImmersive();
   void ServiceImmersiveMode();
+  void ServiceOverlayeMode();
 };
 
 }  // namespace gfx

@@ -52,6 +52,7 @@ class OpenVRSession : public VRSession {
   void StopAllHaptics() override;
 
  protected:
+   bool Submit2DFrame(ID3D11Texture2D* aTexture, uint64_t aOverlayId) override;
 #if defined(XP_WIN)
   bool SubmitFrame(const mozilla::gfx::VRLayer_Stereo_Immersive& aLayer,
                    ID3D11Texture2D* aTexture) override;

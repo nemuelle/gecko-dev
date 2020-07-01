@@ -68,12 +68,19 @@ class VRManager : nsIObserver {
 #endif
   void AddLayer(VRLayerParent* aLayer);
   void RemoveLayer(VRLayerParent* aLayer);
+  
+  bool Add2DLayer(uint64_t aOverlayId);
+  VRLayerState* Get2DLayer(uint64_t aOverlayId);
+  void Remove2DLayer(uint64_t aOverlayId);
+
   void SetGroupMask(uint32_t aGroupMask);
   void SubmitFrame(VRLayerParent* aLayer,
                    const layers::SurfaceDescriptor& aTexture, uint64_t aFrameId,
                    const gfx::Rect& aLeftEyeRect,
                    const gfx::Rect& aRightEyeRect);
+  bool Submit2DFrame(const layers::SurfaceDescriptor& aTexture, uint64_t aFrameId, uint64_t aOverlayId);
   bool IsPresenting();
+  bool IsActive() const;
 
  private:
   VRManager();

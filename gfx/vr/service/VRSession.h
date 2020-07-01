@@ -64,6 +64,7 @@ class VRSession {
   virtual void StopVibrateHaptic(uint32_t aControllerIdx) = 0;
   virtual void StopAllHaptics() = 0;
   bool SubmitFrame(const mozilla::gfx::VRLayer_Stereo_Immersive& aLayer);
+  bool Submit2DFrame(const mozilla::gfx::VRLayer_2D_Content& aLayer);
   bool ShouldQuit() const;
 
 #ifdef MOZILLA_INTERNAL_API
@@ -76,6 +77,7 @@ class VRSession {
 #if defined(XP_WIN)
   virtual bool SubmitFrame(const mozilla::gfx::VRLayer_Stereo_Immersive& aLayer,
                            ID3D11Texture2D* aTexture) = 0;
+  virtual bool Submit2DFrame(ID3D11Texture2D* aTexture, uint64_t aOverlayId) { return false; }
   bool CreateD3DContext(ID3D11Device* aDevice);
 
   ID3D11Device1* GetD3DDevice();

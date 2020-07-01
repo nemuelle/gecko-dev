@@ -32,6 +32,10 @@ FxRWindowManager* FxRWindowManager::GetInstance() {
   return sFxrWinMgrInstance;
 }
 
+bool FxRWindowManager::HasInstance() {
+  return sFxrWinMgrInstance != nullptr;
+}
+
 FxRWindowManager::FxRWindowManager()
     : mVrApp(nullptr),
       mDxgiAdapterIndex(-1),
@@ -59,6 +63,18 @@ bool FxRWindowManager::VRinit() {
   }
 
   return (eError == vr::VRInitError_None);
+}
+
+void FxRWindowManager::CacheVRProcPid(base::ProcessId aPid) {
+  mVRProcPid = aPid;
+
+  if (mFxRWindow.mOverlayHandle != 0) {
+    SetRenderPid(mFxRWindow.mOverlayHandle, aPid);
+  }
+
+  if (mTransportWindow.mOverlayHandle != 0) {
+    SetRenderPid(mTransportWindow.mOverlayHandle, aPid);
+  }
 }
 
 // OpenVR allows for an OpenVR scene to have rendering in a separate process,
@@ -233,6 +249,10 @@ bool FxRWindowManager::CreateOverlayForWindow(FxRWindow& newWindow,
             if (overlayError == vr::VROverlayError_None) {
               // Now, start listening for input...
               overlayError = SetupOverlayInput(newWindow.mOverlayHandle);
+
+              // TODO
+              // Since rendering of the Overlay will happen in another process, grant
+              // access to the GPU process PID
             }
           }
         }
@@ -807,6 +827,8 @@ void FxRWindowManager::EnsureTransportControls() {
           mTransportWindow.mOverlayHandle, vr::TrackingUniverseStanding,
           &transform);
       MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+      SetRenderPid(mTransportWindow.mOverlayHandle, mVRProcPid);
     }
   } else {
     // The overlay for the controls are already created, so simply show them.

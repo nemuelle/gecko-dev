@@ -33,9 +33,14 @@ class FxROutputHandler final {
   bool GetSize(uint32_t& aWidth, uint32_t& aHeight) const;
 
  private:
-  vr::IVRSystem * m_pHMD = nullptr;
   uint64_t mOverlayId = 0;
+  uint64_t mFrameId = 0;
+  
   RefPtr<IDXGISwapChain> mSwapChain = nullptr;
+  RefPtr<ID3D11Texture2D> mTexCopy = nullptr;
+  HANDLE mTexCopyShared = nullptr;
+  
+  
   // Cache the width/height from the last initialization for easy retrieval
   uint32_t mLastWidth = 0;
   uint32_t mLastHeight = 0;
