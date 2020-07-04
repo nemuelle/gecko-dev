@@ -90,6 +90,7 @@ class DeviceManagerDx final {
   // Enumerate and return all outputs on the current adapter.
   nsTArray<DXGI_OUTPUT_DESC1> EnumerateOutputs();
   uint32_t GetDXGIAdapterIndex();
+  bool IsDefaultDXGIAdapter();
 
   // find the IDXGIOutput with a description.Monitor matching
   // 'monitor'; returns false if not found or some error occurred.

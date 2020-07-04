@@ -451,6 +451,10 @@ uint32_t DeviceManagerDx::GetDXGIAdapterIndex() {
   }
 }
 
+bool DeviceManagerDx::IsDefaultDXGIAdapter() {
+  return GetDXGIAdapterIndex() == DXGI_ADAPTER_DEFAULT;
+}
+
 IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
   if (mAdapter) {
     return mAdapter;
@@ -508,11 +512,6 @@ IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
           desc.VendorId == preferred.VendorId &&
           desc.DeviceId == preferred.DeviceId) {
         mAdapter = adapter.forget();
-
-        wchar_t buf[10] = { 0 };
-        swprintf(buf, ARRAYSIZE(buf), L"%d", index);
-        ::SetEnvironmentVariable(L"FXR_DXGI_ADAPTER", buf);
-
         break;
       }
     }
