@@ -17,7 +17,18 @@
 
 #include "mozilla/dom/MediaControlService.h"
 
+// FxRWindowManager is a singleton in the Main/UI process
 static mozilla::StaticAutoPtr<FxRWindowManager> sFxrWinMgrInstance;
+
+// Default window transform
+vr::HmdMatrix34_t FxRWindowManager::s_DefaultWindowTransform = {{
+    {1.0f, 0.0f, 0.0f, 0.0f},  // no move in x direction
+    {0.0f, 1.0f, 0.0f, 2.0f},  // +y to move it up
+    {0.0f, 0.0f, 1.0f, -2.0f}  // -z to move it forward from the origin
+}};
+// Default window width, in meters
+float FxRWindowManager::s_DefaultWindowWidth = 4.0f;
+
 // To view console logging output for FxRWindowManager, add
 //     --MOZ_LOG=FxRWindowManager:5
 // to cmd line
@@ -114,7 +125,8 @@ bool FxRWindowManager::AddWindow(nsPIDOMWindowOuter* aWindow) {
   InitWindow(mFxRWindow, aWindow);
 
   const char* newWindowName = "Firefox Reality";
-  bool created = CreateOverlayForWindow(mFxRWindow, newWindowName, 4.0f);
+  bool created =
+      CreateOverlayForWindow(mFxRWindow, newWindowName, s_DefaultWindowWidth);
   if (created) {
     // Associate this new window with this new OpenVR overlay for output
     // rendering
@@ -200,16 +212,9 @@ bool FxRWindowManager::CreateOverlayForWindow(FxRWindow& newWindow,
 
     if (overlayError == vr::VROverlayError_None) {
       // Set the transform for the overlay position
-      vr::HmdMatrix34_t transform = {{
-          {1.0f, 0.0f, 0.0f, 0.0f},  // no move in x direction
-          {0.0f, 1.0f, 0.0f, 2.0f},  // +y to move it up
-          {0.0f, 0.0f, 1.0f, -2.0f}  // -z to move it forward from the origin
-      }};
       overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
-        newWindow.mOverlayHandle,
-        vr::TrackingUniverseStanding,
-        &transform
-      );
+          newWindow.mOverlayHandle, vr::TrackingUniverseStanding,
+          &s_DefaultWindowTransform);
 
       if (overlayError == vr::VROverlayError_None) {
         overlayError = vr::VROverlay()->SetOverlayFlag(
@@ -583,6 +588,18 @@ void FxRWindowManager::ShowVirtualKeyboard(uint64_t aOverlayId) {
 
   MOZ_ASSERT(overlayError == vr::VROverlayError_None ||
              overlayError == vr::VROverlayError_KeyboardAlreadyInUse);
+
+  // Now, ensure that the keyboard doesn't overlap the overlay by providing a
+  // rect for OpenVR to avoid (i.e., the whole overlay texture).
+  uint32_t width = 0;
+  uint32_t height = 0;
+  overlayError =
+      vr::VROverlay()->GetOverlayTextureSize(aOverlayId, &width, &height);
+  vr::HmdRect2_t rect = {{0.0f, (float)height}, {(float)width, 0.0f}};
+  vr::VROverlay()->SetKeyboardPositionForOverlay(aOverlayId, rect);
+
+  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+  MOZ_ASSERT(width != 0 && height != 0);
   mozilla::Unused << overlayError;
 }
 
@@ -710,27 +727,28 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
     }
   } else {
     overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-        mFxRWindow.mOverlayHandle, 4.0f);
+        mFxRWindow.mOverlayHandle, s_DefaultWindowWidth);
 
     if (overlayError == vr::VROverlayError_None) {
-      vr::HmdMatrix34_t transform = {{
-          {1.0f, 0.0f, 0.0f, 0.0f},  // no move in x direction
-          {0.0f, 1.0f, 0.0f, 2.0f},  // +y to move it up
-          {0.0f, 0.0f, 1.0f, -3.0f}  // -z to move it forward from the origin
-      }};
       if (isStereo2D) {
         // For stereo viewing, we want the overlay further from the user's eyes,
         // as the apparent distance of the resultant 3D image is closer than a
         // 2D image
 
-        transform = {{
+        vr::HmdMatrix34_t transform = {{
             {1.0f, 0.0f, 0.0f, 0.0f},  // no move in x direction
             {0.0f, 1.0f, 0.0f, 2.0f},  // +y to move it up
             {0.0f, 0.0f, 1.0f, -6.0f}  // -z to move it forward from the origin
         }};
+
+        overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+            mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
+            &transform);
+      } else {
+        overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+            mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
+            &s_DefaultWindowTransform);
       }
-      overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
-          mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding, &transform);
     }
   }
 

@@ -135,4 +135,7 @@ class FxRWindowManager final {
   const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = {
       VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360, VIDEO_PROJECTION_360S,
       VIDEO_PROJECTION_3D};
+
+  static vr::HmdMatrix34_t s_DefaultWindowTransform;
+  static float s_DefaultWindowWidth;
 };
