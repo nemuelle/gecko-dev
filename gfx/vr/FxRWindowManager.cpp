@@ -577,12 +577,13 @@ void FxRWindowManager::HandleKeyboardEvent(
 void FxRWindowManager::ShowVirtualKeyboard(uint64_t aOverlayId) {
   // Note: bUseMinimalMode set to true so that each char arrives as an event.
   vr::VROverlayError overlayError = vr::VROverlay()->ShowKeyboardForOverlay(
-      aOverlayId, vr::k_EGamepadTextInputModeNormal,
+      aOverlayId,
+      vr::k_EGamepadTextInputModeNormal,
       vr::k_EGamepadTextInputLineModeSingleLine,
+      vr::KeyboardFlag_Minimal,
       "FxR",  // pchDescription,
       100,    // unCharMax,
       "",     // pchExistingText,
-      true,   // bUseMinimalMode
       0       // uint64_t uUserValue
   );
 
