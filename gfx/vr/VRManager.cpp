@@ -238,6 +238,8 @@ void VRManager::RemoveLayer(VRLayerParent* aLayer) {
     StopPresentation();
   }
   mDisplayInfo.mPresentingGroups = 0;
+  mDisplayInfo.mControllerState->exitPresentStartFrameId = 0;
+  mDisplayInfo.mControllerState->exitPresentStopFrameId = 0;
   for (auto layer : mLayers) {
     mDisplayInfo.mPresentingGroups |= layer->GetGroup();
   }

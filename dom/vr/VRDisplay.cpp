@@ -580,7 +580,9 @@ void VRDisplay::SendPresentationChange(bool isPresenting) {
 }
 
 void VRDisplay::ExitPresentFromController() {
-  ExitPresentInternal();
+  if (IsPresenting()) {
+    ExitPresentInternal();
+  }
 }
 
 void VRDisplay::ExitPresentInternal() {

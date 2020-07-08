@@ -67,6 +67,10 @@ bool FxRWindowManager::VRinit() {
   if (mVrApp == nullptr) {
     mVrApp = vr::VR_Init(&eError, vr::VRApplication_Overlay);
     if (eError == vr::VRInitError_None) {
+      MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+        ("FxRWindowManager::VRinit -- RuntimeVersion: %s",
+          mVrApp->GetRuntimeVersion()));
+
       mVrApp->GetDXGIOutputInfo(&mDxgiAdapterIndex);
       MOZ_ASSERT(mDxgiAdapterIndex != -1);
     }
@@ -614,12 +618,13 @@ void FxRWindowManager::HandleKeyboardEvent(
 void FxRWindowManager::ShowVirtualKeyboard(uint64_t aOverlayId) {
   // Note: bUseMinimalMode set to true so that each char arrives as an event.
   vr::VROverlayError overlayError = vr::VROverlay()->ShowKeyboardForOverlay(
-      aOverlayId, vr::k_EGamepadTextInputModeNormal,
+      aOverlayId,
+      vr::k_EGamepadTextInputModeNormal,
       vr::k_EGamepadTextInputLineModeSingleLine,
+      vr::KeyboardFlag_Minimal,
       "FxR",  // pchDescription,
       100,    // unCharMax,
       "",     // pchExistingText,
-      true,   // bUseMinimalMode
       0       // uint64_t uUserValue
   );
 

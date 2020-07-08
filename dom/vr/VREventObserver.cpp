@@ -180,9 +180,10 @@ bool VREventObserver::IsWebVR(uint32_t aDisplayID) const {
 }
 
 void VREventObserver::NotifyExitPresentFromController() {
+  return;
   // TODO: I don't understand what the check IsCurrentInnerWindow is for. Will
   // these checks be problematic for some of the Overlay Window use cases?
-  if (mWindow && mWindow->IsCurrentInnerWindow()) {
+  if (mWindow && mWindow->IsCurrentInnerWindow()) { // && IsWebVR(aDisplayID) ?????
     MOZ_ASSERT(nsContentUtils::IsSafeToRunScript());
     mWindow->ExitPresentAllDisplaysFromController();
   }

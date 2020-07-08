@@ -10,6 +10,7 @@
 #include "mozilla/dom/XRInputSourceEvent.h"
 #include "mozilla/EventDispatcher.h"
 #include "mozilla/dom/DocumentInlines.h"
+#include "mozilla/dom/BrowserChild.h"
 #include "XRSystem.h"
 #include "XRRenderState.h"
 #include "XRBoundedReferenceSpace.h"
@@ -123,7 +124,8 @@ XRSession::XRSession(
       mFrameRequestCallbackCounter(0),
       mEnabledReferenceSpaceTypes(aEnabledReferenceSpaceTypes.Clone()),
       mViewerPosePoolIndex(0),
-      mFramePoolIndex(0) {
+      mFramePoolIndex(0),
+      mSendPresentationChange(false) {
   if (aClient) {
     aClient->SessionStarted(this);
   }
@@ -291,6 +293,23 @@ void XRSession::WillRefresh(mozilla::TimeStamp aTime) {
   }
 }
 
+void XRSession::SendPresentationChange(bool isPresenting) {
+  //return;
+  if (isPresenting != mSendPresentationChange) {
+    mSendPresentationChange = isPresenting;
+
+    RefPtr<BrowserChild> browserChild =
+      BrowserChild::GetFrom(GetOwner());
+
+    if (browserChild) {
+      int browserID = browserChild->ChromeOuterWindowID();
+
+      RefPtr<XRSession> self(this);
+      browserChild->SendOnWebXRPresentationChange(browserID, isPresenting);
+    }
+  }
+}
+
 void XRSession::StartFrame() {
   ApplyPendingRenderState();
 
@@ -323,6 +342,10 @@ void XRSession::StartFrame() {
   frame->EndAnimationFrame();
   if (mDisplayPresentation) {
     mDisplayPresentation->SubmitFrame();
+
+    if (IsImmersive()) {
+      SendPresentationChange(true);      
+    }
   }
 }
 
@@ -418,6 +441,11 @@ void XRSession::Shutdown() {
   }
 }
 
+void XRSession::ExitPresentFromController() {
+  ExitPresentInternal();
+}
+
+
 void XRSession::ExitPresentInternal() {
   if (mInputSources) {
     mInputSources->Clear(this);
@@ -438,7 +466,10 @@ void XRSession::ExitPresentInternal() {
     mPendingRenderState->SessionEnded();
   }
 
+  SendPresentationChange(false);
+
   mDisplayPresentation = nullptr;
+  
   if (!mEnded) {
     mEnded = true;
 

@@ -93,6 +93,7 @@ class XRSession final : public DOMEventTargetHelper, public nsARefreshObserver {
   bool IsImmersive() const;
   MOZ_CAN_RUN_SCRIPT
   void StartFrame();
+  void ExitPresentFromController();
   void ExitPresent();
   RefPtr<XRViewerPose> PooledViewerPose(const gfx::Matrix4x4Double& aTransform,
                                         bool aEmulatedPosition);
@@ -107,6 +108,7 @@ class XRSession final : public DOMEventTargetHelper, public nsARefreshObserver {
   void DisconnectFromOwner() override;
   void Shutdown();
   void ExitPresentInternal();
+  void SendPresentationChange(bool isPresenting);
   void ApplyPendingRenderState();
   RefPtr<XRFrame> PooledFrame();
   RefPtr<XRSystem> mXRSystem;
@@ -143,6 +145,9 @@ class XRSession final : public DOMEventTargetHelper, public nsARefreshObserver {
   uint32_t mViewerPosePoolIndex;
   nsTArray<RefPtr<XRFrame>> mFramePool;
   uint32_t mFramePoolIndex;
+
+  // 
+  bool mSendPresentationChange;
 };
 
 }  // namespace dom

@@ -7,7 +7,8 @@
 /* import-globals-from permissions.js */
 
 // Configuration vars
-let homeURL = "https://webxr.today/";
+let homeURL = "https://immersive-web.github.io/webxr-samples/immersive-vr-session.html?usePolyfill=0";
+//let homeURL = "https://webxr.today/";
 // Bug 1586294 - Localize the privacy policy URL (Services.urlFormatter?)
 let privacyPolicyURL = "https://www.mozilla.org/en-US/privacy/firefox/";
 let reportIssueURL = "https://mzl.la/fxr";
