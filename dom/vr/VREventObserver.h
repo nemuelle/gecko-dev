@@ -32,7 +32,7 @@ class VREventObserver final : public gfx::VRManagerEventObserver {
   void NotifyPresentationGenerationChanged(uint32_t aDisplayID) override;
   void NotifyEnumerationCompleted() override;
   void NotifyDetectRuntimesCompleted() override;
-  void NotifyExitPresentFromController() override;
+  void NotifyExitPresentFromController(uint32_t aDisplayID) override;
 
   void DisconnectFromOwner();
   void UpdateSpentTimeIn2DTelemetry(bool aUpdate);
