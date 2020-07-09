@@ -490,13 +490,9 @@ void XRSystem::NotifyPresentationGenerationChanged(uint32_t aDisplayID) {
   }
 }
 
-void XRSystem::NotifyExitPresentFromController() {
-  // TODO: I don't understand what the check IsCurrentInnerWindow is for. Will
-  // these checks be problematic for some of the Overlay Window use cases?
-  nsGlobalWindowInner* win = nsGlobalWindowInner::Cast(GetOwner());
-  if (win && win->IsCurrentInnerWindow()) {
-    MOZ_ASSERT(nsContentUtils::IsSafeToRunScript());
-    win->ExitPresentAllDisplaysFromController();
+void XRSystem::NotifyExitPresentFromController(uint32_t aDisplayID) {
+  if (mActiveImmersiveSession) {
+    mActiveImmersiveSession->ExitPresentFromController();
   }
 }
 bool XRSystem::GetStopActivityStatus() const { return true; }
