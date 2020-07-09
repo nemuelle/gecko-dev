@@ -10,6 +10,7 @@
 #include "mozilla/dom/XRInputSourceEvent.h"
 #include "mozilla/EventDispatcher.h"
 #include "mozilla/dom/DocumentInlines.h"
+#include "mozilla/dom/BrowserChild.h"
 #include "XRSystem.h"
 #include "XRRenderState.h"
 #include "XRBoundedReferenceSpace.h"
@@ -179,6 +180,22 @@ XRVisibilityState XRSession::VisibilityState() {
   // TODO (Bug 1609771): Implement changing visibility state
 }
 
+void XRSession::SendPresentationChange(bool isPresenting) {
+  if (isPresenting != mSendPresentationChange) {
+    mSendPresentationChange = isPresenting;
+
+    RefPtr<BrowserChild> browserChild =
+      BrowserChild::GetFrom(GetOwner());
+
+    if (browserChild) {
+      int browserID = browserChild->ChromeOuterWindowID();
+
+      RefPtr<XRSession> self(this);
+      browserChild->SendOnWebXRPresentationChange(browserID, isPresenting);
+    }
+  }
+}
+
 // https://immersive-web.github.io/webxr/#dom-xrsession-updaterenderstate
 void XRSession::UpdateRenderState(const XRRenderStateInit& aNewState,
                                   ErrorResult& aRv) {
@@ -330,10 +347,17 @@ void XRSession::StartFrame() {
   frame->EndAnimationFrame();
   if (mDisplayPresentation) {
     mDisplayPresentation->SubmitFrame();
+    
+    if (IsImmersive()) {
+      SendPresentationChange(true);
+    }
   }
 }
 
 void XRSession::ExitPresent() { ExitPresentInternal(); }
+void XRSession::ExitPresentFromController() {
+  ExitPresentInternal();  
+}
 
 already_AddRefed<Promise> XRSession::RequestReferenceSpace(
     const XRReferenceSpaceType& aReferenceSpaceType, ErrorResult& aRv) {
@@ -449,6 +473,8 @@ void XRSession::ExitPresentInternal() {
   if (mPendingRenderState) {
     mPendingRenderState->SessionEnded();
   }
+
+  SendPresentationChange(false);
 
   mDisplayPresentation = nullptr;
   if (!mEnded) {

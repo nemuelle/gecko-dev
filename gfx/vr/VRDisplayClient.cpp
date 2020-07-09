@@ -46,6 +46,7 @@ VRDisplayClient::VRDisplayClient(const VRDisplayInfo& aDisplayInfo)
       // compatibility mode. See Bug 1630512
       mAPIMode(VRAPIMode::WebVR) {
   MOZ_COUNT_CTOR(VRDisplayClient);
+  mLastExitPresentStopFrameId = mDisplayInfo.mControllerState[0].exitPresentStopFrameId;
 }
 
 VRDisplayClient::~VRDisplayClient() { MOZ_COUNT_DTOR(VRDisplayClient); }
@@ -58,6 +59,8 @@ void VRDisplayClient::UpdateDisplayInfo(const VRDisplayInfo& aDisplayInfo) {
 already_AddRefed<VRDisplayPresentation> VRDisplayClient::BeginPresentation(
     const nsTArray<mozilla::dom::VRLayer>& aLayers, uint32_t aGroup) {
   PresentationCreated();
+  mLastExitPresentStopFrameId = mDisplayInfo.mControllerState[0].exitPresentStopFrameId;
+
   RefPtr<VRDisplayPresentation> presentation =
       new VRDisplayPresentation(this, aLayers, aGroup);
   return presentation.forget();
@@ -120,12 +123,14 @@ void VRDisplayClient::FireEvents() {
   bool isPresenting = (mDisplayInfo.mPresentingGroups & kVRGroupContent) != 0;
 
   if (isPresenting
-    && mDisplayInfo.mControllerState->exitPresentStartFrameId != 0
-    && mDisplayInfo.mControllerState->exitPresentStartFrameId <= 
-        mDisplayInfo.mControllerState->exitPresentStopFrameId) {
+    && mDisplayInfo.mControllerState[0].exitPresentStopFrameId != 
+        mLastExitPresentStopFrameId
+    && mDisplayInfo.mControllerState[0].exitPresentStartFrameId <= 
+        mDisplayInfo.mControllerState[0].exitPresentStopFrameId) {
+    mLastExitPresentStopFrameId = mDisplayInfo.mControllerState[0].exitPresentStopFrameId;
     // In this case, the controller has successfully registered the gesture to
     // exit present, so forward this command to the content process(es). 
-    vm->NotifyExitPresentFromController();
+    vm->NotifyExitPresentFromController(mDisplayInfo.mDisplayID);
   }
 
   // Check if we need to trigger onVRDisplayPresentChange event

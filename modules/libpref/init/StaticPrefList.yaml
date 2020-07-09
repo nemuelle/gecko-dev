@@ -3193,7 +3193,7 @@
 # Is support for WebXR APIs enabled?
 - name: dom.vr.webxr.enabled
   type: RelaxedAtomicBool
-  value: false
+  value: true
   mirror: always
 
 # W3C draft pointer events
