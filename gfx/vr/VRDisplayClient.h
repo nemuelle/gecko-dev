@@ -75,6 +75,7 @@ class VRDisplayClient {
   int mPresentationCount;
   uint64_t mLastEventFrameId;
   uint32_t mLastPresentingGeneration;
+  uint64_t mLastExitPresentStopFrameId;
 
   // Difference between mDisplayInfo.mControllerState and
   // mLastEventControllerState determines what gamepad events to fire when
