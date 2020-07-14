@@ -75,6 +75,7 @@ class FxRWindowManager final {
   void RemoveWindow(uint64_t aOverlayId);
   bool IsFxRWindow(uint64_t aOuterWindowID);
   bool IsFxRWindow(const nsWindow* aWindow) const;
+  void SetOverlayScale(uint64_t aOuterWindowID, float aScale);
 
   void ProcessOverlayEvents(nsWindow* window);
   void ShowVirtualKeyboard(uint64_t aOverlayId);
@@ -136,6 +137,6 @@ class FxRWindowManager final {
       VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360, VIDEO_PROJECTION_360S,
       VIDEO_PROJECTION_3D};
 
-  static vr::HmdMatrix34_t s_DefaultWindowTransform;
-  static float s_DefaultWindowWidth;
+  static vr::HmdMatrix34_t s_DefaultOverlayTransform;
+  static float s_DefaultOverlayWidth;
 };

@@ -1376,4 +1376,10 @@ void ChromeUtils::SetFxrProjectionMode(const GlobalObject& aGlobal,
   FxRWindowManager::GetInstance()->SetProjectionMode(aMode);
 }
 
+/* static */
+void ChromeUtils::SetFxrSizeScale(const GlobalObject& aGlobal,
+  const unsigned long long aOuterwindowID, const float aScale) {
+  FxRWindowManager::GetInstance()->SetOverlayScale(aOuterwindowID, aScale);
+}
+
 }  // namespace mozilla::dom

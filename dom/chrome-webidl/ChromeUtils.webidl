@@ -506,6 +506,9 @@ partial namespace ChromeUtils {
    */ 
   [ChromeOnly]
   void setFxrProjectionMode(DOMString aMode);
+
+  [ChromeOnly]
+  void setFxrSizeScale(unsigned long long aOuterwindowID, float scale);
 };
 
 /*

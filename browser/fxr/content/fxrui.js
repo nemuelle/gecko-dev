@@ -165,7 +165,14 @@ function setupNavButtons() {
     "eStop",
     "eHome",
     "ePrefs",
-    "eClose"
+    "eCloseWindow",
+    "eMoveWindow",
+    "eResizeWindow",
+    "eResize3x",
+    "eResize2x",
+    "eResize1x",
+    "eResizeHalf",
+    "eResizeDone",
   ];
 
   function navButtonHandler(e) {
@@ -195,8 +202,32 @@ function setupNavButtons() {
           openSettings();
           break;
 
-        case "eClose":
+        case "eCloseWindow":
           window.close();
+          break;
+
+        case "eResizeWindow":
+          displayResizeContainer(true);
+          break;
+
+        case "eResizeDone":
+          displayResizeContainer(false);
+          break;
+
+        case "eResize3x":
+          doOverlayResize(3.0);
+          break;
+
+        case "eResize2x":
+          doOverlayResize(2.0);
+          break;
+
+        case "eResize1x":
+          doOverlayResize(1.0);
+          break;
+
+        case "eResizeHalf":
+          doOverlayResize(0.5);
           break;
       }
     }
@@ -237,6 +268,22 @@ function setupUrlBar() {
   urlInput.addEventListener("focus", function() {
     urlInput.select();
   });
+}
+
+//
+// Code for Overlay Window Management
+//
+
+function displayResizeContainer(show) {
+  var resizeContainer = document.getElementById("eResizeContainer");
+  var navbarContainer = document.getElementById("eNavbarContainer");
+
+  resizeContainer.classList.toggle("container_hidden", !show);
+  navbarContainer.classList.toggle("container_hidden", show);
+}
+
+function doOverlayResize(scale) {
+  ChromeUtils.setFxrSizeScale(window.windowUtils.outerWindowID, scale);
 }
 
 //
