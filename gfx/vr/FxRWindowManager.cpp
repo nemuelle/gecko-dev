@@ -21,13 +21,13 @@
 static mozilla::StaticAutoPtr<FxRWindowManager> sFxrWinMgrInstance;
 
 // Default window transform
-vr::HmdMatrix34_t FxRWindowManager::s_DefaultWindowTransform = {{
+vr::HmdMatrix34_t FxRWindowManager::s_DefaultOverlayTransform = {{
     {1.0f, 0.0f, 0.0f, 0.0f},  // no move in x direction
     {0.0f, 1.0f, 0.0f, 2.0f},  // +y to move it up
     {0.0f, 0.0f, 1.0f, -2.0f}  // -z to move it forward from the origin
 }};
 // Default window width, in meters
-float FxRWindowManager::s_DefaultWindowWidth = 4.0f;
+float FxRWindowManager::s_DefaultOverlayWidth = 4.0f;
 
 // To view console logging output for FxRWindowManager, add
 //     --MOZ_LOG=FxRWindowManager:5
@@ -126,13 +126,14 @@ bool FxRWindowManager::AddWindow(nsPIDOMWindowOuter* aWindow) {
 
   const char* newWindowName = "Firefox Reality";
   bool created =
-      CreateOverlayForWindow(mFxRWindow, newWindowName, s_DefaultWindowWidth);
+      CreateOverlayForWindow(mFxRWindow, newWindowName, s_DefaultOverlayWidth);
   if (created) {
     // Associate this new window with this new OpenVR overlay for output
     // rendering
     nsCOMPtr<nsIWidget> newWidget =
       mozilla::widget::WidgetUtils::DOMWindowToWidget(mFxRWindow.mWindow);
     newWidget->RequestFxrOutput(mFxRWindow.mOverlayHandle);
+    SetOverlayScale(mFxRWindow.mWindow->WindowID(), 1.0f);
   }
 
   return created;
@@ -214,7 +215,7 @@ bool FxRWindowManager::CreateOverlayForWindow(FxRWindow& newWindow,
       // Set the transform for the overlay position
       overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
           newWindow.mOverlayHandle, vr::TrackingUniverseStanding,
-          &s_DefaultWindowTransform);
+          &s_DefaultOverlayTransform);
 
       if (overlayError == vr::VROverlayError_None) {
         overlayError = vr::VROverlay()->SetOverlayFlag(
@@ -250,6 +251,21 @@ bool FxRWindowManager::CreateOverlayForWindow(FxRWindow& newWindow,
     return false;
   } else {
     return true;
+  }
+}
+
+void FxRWindowManager::SetOverlayScale(uint64_t aOuterWindowID, float aScale) {
+  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+    ("FxRWindowManager::SetOverlayScale -- (%f)", aScale));
+
+  if (IsFxRWindow(aOuterWindowID)) {
+    vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
+      mFxRWindow.mOverlayHandle,
+      s_DefaultOverlayWidth * aScale
+    );
+
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+    mozilla::Unused << overlayError;
   }
 }
 
@@ -728,7 +744,7 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
     }
   } else {
     overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-        mFxRWindow.mOverlayHandle, s_DefaultWindowWidth);
+        mFxRWindow.mOverlayHandle, s_DefaultOverlayWidth);
 
     if (overlayError == vr::VROverlayError_None) {
       if (isStereo2D) {
@@ -748,7 +764,7 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
       } else {
         overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
             mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
-            &s_DefaultWindowTransform);
+            &s_DefaultOverlayTransform);
       }
     }
   }
