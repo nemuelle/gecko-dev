@@ -28,9 +28,15 @@
 </head>
 
 <body>
+  <div class="winmgm_container icon_set_container"> <!-- window management container -->
+    <button id="eMoveWindow"    class="icon_container icon_set_begin  icon_move"></button>
+    <button id="eCloseWindow"   class="icon_container icon_set_middle icon_close"></button>
+    <button id="eResizeWindow"  class="icon_container icon_set_end    icon_resize"></button>
+  </div>
+
   <div id="eBrowserContainer" class="browser_container"></div>
 
-  <div class="navbar_container">
+  <div id="eNavbarContainer" class="navbar_container">
     <button id="eBack"    class="icon_container icon_backward"></button>
     <button id="eForward" class="icon_container icon_forward"></button>
     <button id="eRefresh" class="icon_container icon_refresh icon_disabled_hide"></button>
@@ -42,7 +48,13 @@
       <input class="urlbar_input" id="eUrlInput" type="text" value="" />
     </div>
     <button id="ePrefs"   class="icon_container icon_prefs"></button>
-    <button id="eClose"   class="icon_container icon_close"></button>
+  </div>
+  <div id="eResizeContainer" class="resize_container icon_set_container container_hidden">
+    <button id="eResize3x"    class="icon_container icon_set_begin  icon_3x"></button>
+    <button id="eResize2x"    class="icon_container icon_set_middle icon_2x"></button>
+    <button id="eResize1x"    class="icon_container icon_set_middle icon_1x"></button>
+    <button id="eResizeHalf"  class="icon_container icon_set_middle icon_05x"></button>
+    <button id="eResizeDone"  class="icon_container icon_set_end    icon_check"></button>
   </div>
 </body>
 </html>
