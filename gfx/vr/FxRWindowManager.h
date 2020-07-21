@@ -53,12 +53,32 @@ class FxRWindowManager final {
     // from the background thread to the main thread. Consider using a queue?
     VREventVector mEventsVector;
     CRITICAL_SECTION mEventsCritSec;
+    
+    // When true, indicates that VREvents should be used to move the overlay
+    mozilla::Atomic<bool> mIsMoving;
 
     // OpenVR scroll event doesn't provide the position of the controller on the
     // overlay, so keep track of the last-known position to use with the scroll
     // event
     POINT mLastMousePt;
     RECT mOverlaySizeRec;
+
+    FxRWindow() {
+      Reset();
+    }
+
+    void Reset() {
+      mWidget = nullptr;
+      mWindow = nullptr;
+      mOverlayHandle = 0;
+      mOverlayThumbnailHandle = 0;
+
+      mEventsCritSec = { 0 };
+      mIsMoving = false;
+
+      mLastMousePt = { 0 };
+      mOverlaySizeRec = { 0 };
+    }
   };
 
  public:
@@ -75,7 +95,9 @@ class FxRWindowManager final {
   void RemoveWindow(uint64_t aOverlayId);
   bool IsFxRWindow(uint64_t aOuterWindowID);
   bool IsFxRWindow(const nsWindow* aWindow) const;
+
   void SetOverlayScale(uint64_t aOuterWindowID, float aScale);
+  void SetOverlayMoveMode(uint64_t aOuterWindowID, bool aEnable);
 
   void ProcessOverlayEvents(nsWindow* window);
   void ShowVirtualKeyboard(uint64_t aOverlayId);
@@ -106,6 +128,7 @@ class FxRWindowManager final {
                          vr::VREvent_Scroll_t& data, bool& hasScrolled);
   void HandleKeyboardEvent(FxRWindow& fxrWindow, nsWindow* window,
                            vr::VREvent_Keyboard_t& data);
+  bool HandleOverlayMove(FxRWindow& fxrWindow, vr::VREvent_t& aEvent);
 
   void ToggleMedia();
   void EnsureTransportControls();
@@ -136,7 +159,4 @@ class FxRWindowManager final {
   const std::vector<FxRProjectionMode> FxRSupportedProjectionModes = {
       VIDEO_PROJECTION_2D, VIDEO_PROJECTION_360, VIDEO_PROJECTION_360S,
       VIDEO_PROJECTION_3D};
-
-  static vr::HmdMatrix34_t s_DefaultOverlayTransform;
-  static float s_DefaultOverlayWidth;
 };

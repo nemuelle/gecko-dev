@@ -48,7 +48,13 @@ body {
   fill: var(--num14);
 }
 
-.urlbar_container {
+.icon_modal {
+  background-color: var(--num02);
+  border-color: transparent;
+  fill: var(--num06);
+}
+
+.urlbar_container {  
   border-color: transparent;
   background-color: var(--num02);
 }
