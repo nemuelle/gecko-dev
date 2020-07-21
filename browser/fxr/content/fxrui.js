@@ -7,7 +7,7 @@
 /* import-globals-from permissions.js */
 
 // Configuration vars
-let homeURL = "https://webxr.today/";
+let homeURL = "https://webxr.today/?skipinteractive=true";
 // Bug 1586294 - Localize the privacy policy URL (Services.urlFormatter?)
 let privacyPolicyURL = "https://www.mozilla.org/en-US/privacy/firefox/";
 let reportIssueURL = "https://mzl.la/fxr";
@@ -97,8 +97,7 @@ function setupBrowser() {
     // in other parts of the frontend
     browser.fxrPermissionPrompt = permissionPrompt;
 
-    urlInput.value = homeURL;
-    browser.loadUrlWithSystemPrincipal(homeURL);
+    goHome();
 
     browser.addProgressListener(
       {
@@ -109,7 +108,10 @@ function setupBrowser() {
         onLocationChange(aWebProgress, aRequest, aLocation, aFlags) {
           // When URL changes, update the URL in the URL bar and update
           // whether the back/forward buttons are enabled.
-          urlInput.value = browser.currentURI.spec;
+          let newUrl = browser.currentURI.spec;
+          if (newUrl !== homeURL) {
+            urlInput.value = newUrl;
+          }
 
           backButton.disabled = !browser.canGoBack;
           forwardButton.disabled = !browser.canGoForward;
@@ -188,7 +190,7 @@ function setupNavButtons() {
           break;
 
         case "eHome":
-          browser.loadUrlWithSystemPrincipal(homeURL);
+          goHome();
           break;
 
         case "ePrefs":
@@ -202,6 +204,12 @@ function setupNavButtons() {
     let elem = document.getElementById(btnName);
     elem.addEventListener("click", navButtonHandler);
   }
+}
+
+function goHome() {
+  // Set to empty so that placeholder text will show
+  urlInput.value = "";
+  browser.loadUrlWithSystemPrincipal(homeURL);
 }
 
 function setupUrlBar() {
