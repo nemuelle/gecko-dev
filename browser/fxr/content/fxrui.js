@@ -329,7 +329,14 @@ function doOverlayMove(enable) {
     d.classList.add("icon_modal");
     d.addEventListener(
       "mouseup",
-      () => { doOverlayMove(false)},
+      () => { doOverlayMove(false) },
+      { "once" : true }
+    );
+
+    d.addEventListener(
+      "mousedown",
+      () => { ChromeUtils.setFxrMoveOverlay(
+        window.windowUtils.outerWindowID, enable); },
       { "once" : true }
     );
 

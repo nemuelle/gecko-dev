@@ -28,6 +28,8 @@ static mozilla::StaticAutoPtr<FxRWindowManager> sFxrWinMgrInstance;
 // Default window width, in meters
 float s_DefaultOverlayWidth = 2.0f;
 float s_DefaultOverlayDistance = 2.0f;
+float s_MinOverlayPositionHeight = -1.0f;
+float s_MaxOverlayPositionHeight = 5.0f;
 // Default window transform, in front of the user and facing the origin 
 vr::HmdMatrix34_t s_DefaultOverlayTransform = {{
     // no move in x direction
@@ -329,11 +331,15 @@ bool FxRWindowManager::HandleOverlayMove(FxRWindow& fxrWindow, vr::VREvent_t& aE
         coordinatesInOverlay, &mouseCoordTransform);
     MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
-    mozilla::gfx::Point3D mouseCoord = mozilla::gfx::Point3D(
+    mozilla::gfx::Point3D mouseCoord(
       mouseCoordTransform.m[0][3], // x
       mouseCoordTransform.m[1][3], // y
       mouseCoordTransform.m[2][3]  // z
     );
+
+    // Constrain the height of the position of the overlay
+    mouseCoord.y = std::max(s_MinOverlayPositionHeight,
+      std::min(s_MaxOverlayPositionHeight, mouseCoord.y));
 
     // Next, capture the current headpose to get the HMD's position in space.
     vr::TrackedDevicePose_t currentHeadPoseData;
@@ -354,8 +360,7 @@ bool FxRWindowManager::HandleOverlayMove(FxRWindow& fxrWindow, vr::VREvent_t& aE
 
     // Calculate the vector between the overlay and the HMD on the same plane
     // (i.e., the point of the HMD at the same height as the mouse).
-    const mozilla::gfx::Point3D hmdCoordAtMouseHeight =
-      mozilla::gfx::Point3D(
+    const mozilla::gfx::Point3D hmdCoordAtMouseHeight(
         currentHeadPose.m[0][3],  // x
         mouseCoord[1],            // y 
         currentHeadPose.m[2][3]   // z
