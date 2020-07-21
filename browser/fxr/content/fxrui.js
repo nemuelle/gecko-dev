@@ -65,6 +65,7 @@ window.addEventListener(
     stopButton = document.getElementById("eStop");
 
     setupBrowser();
+    setupWinManagementButtons();
     setupNavButtons();
     setupUrlBar();
 
@@ -165,14 +166,6 @@ function setupNavButtons() {
     "eStop",
     "eHome",
     "ePrefs",
-    "eCloseWindow",
-    "eMoveWindow",
-    "eResizeWindow",
-    "eResize3x",
-    "eResize2x",
-    "eResize1x",
-    "eResizeHalf",
-    "eResizeDone",
   ];
 
   function navButtonHandler(e) {
@@ -200,34 +193,6 @@ function setupNavButtons() {
 
         case "ePrefs":
           openSettings();
-          break;
-
-        case "eCloseWindow":
-          window.close();
-          break;
-
-        case "eResizeWindow":
-          displayResizeContainer(true);
-          break;
-
-        case "eResizeDone":
-          displayResizeContainer(false);
-          break;
-
-        case "eResize3x":
-          doOverlayResize(3.0);
-          break;
-
-        case "eResize2x":
-          doOverlayResize(2.0);
-          break;
-
-        case "eResize1x":
-          doOverlayResize(1.0);
-          break;
-
-        case "eResizeHalf":
-          doOverlayResize(0.5);
           break;
       }
     }
@@ -274,16 +239,98 @@ function setupUrlBar() {
 // Code for Overlay Window Management
 //
 
-function displayResizeContainer(show) {
-  var resizeContainer = document.getElementById("eResizeContainer");
-  var navbarContainer = document.getElementById("eNavbarContainer");
+function setupWinManagementButtons() {
+  let aryWinMgmtButtons = [
+    "eCloseWindow",
+    "eResizeWindow",
+    "eResize3x",
+    "eResize2x",
+    "eResize1x",
+    "eResizeHalf",
+    "eResizeDone",
+  ];
 
-  resizeContainer.classList.toggle("container_hidden", !show);
-  navbarContainer.classList.toggle("container_hidden", show);
+  function winMgmtHandler(e) {
+    if (!this.disabled) {
+      switch (this.id) {
+        case "eCloseWindow":
+          window.close();
+          break;
+
+        case "eResizeWindow":
+          displayResizeContainer();
+          break;
+
+        case "eResizeDone":
+          displayResizeContainer(false);
+          break;
+
+        case "eResize3x":
+          doOverlayResize(3.0);
+          break;
+
+        case "eResize2x":
+          doOverlayResize(2.0);
+          break;
+
+        case "eResize1x":
+          doOverlayResize(1.0);
+          break;
+
+        case "eResizeHalf":
+          doOverlayResize(0.5);
+          break;
+      }
+    }
+  }
+
+  for (let btnName of aryWinMgmtButtons) {
+    let elem = document.getElementById(btnName);
+    elem.addEventListener("click", winMgmtHandler);
+  }
+
+  // Window move is handled separately, as it us a "drag" operation that is
+  // initiated when pressing down on the button.
+  // The 'mouseup' is handled elsewhere,
+  // - natively, by listening for the controller button release to stop moving
+  //   the window (xul!FxRWindowManager::HandleOverlayMove)
+  // - in JS, when the button goes up on the modal icon (doOverlayMove)
+  document.getElementById("eMoveWindow").addEventListener(
+    "mousedown",
+    () => { doOverlayMove(true); }
+  );
+}
+
+function displayResizeContainer(show) {
+  var list = document.getElementById("eResizeContainer").classList;
+  if (show === undefined) {
+    list.toggle("container_hidden");
+  } else {
+    list.toggle("container_hidden", !show);
+  }
 }
 
 function doOverlayResize(scale) {
   ChromeUtils.setFxrSizeScale(window.windowUtils.outerWindowID, scale);
+}
+
+function doOverlayMove(enable) {
+  if (enable) {
+    var d = document.createElement("img");
+    d.src = "assets/icon-move.svg";
+    d.classList.add("icon_modal");
+    d.addEventListener(
+      "mouseup",
+      () => { doOverlayMove(false)},
+      { "once" : true }
+    );
+
+    showModalContainer(d);
+  } else {
+    clearModalContainer();
+  }
+
+  ChromeUtils.setFxrMoveOverlay(window.windowUtils.outerWindowID, enable);
 }
 
 //

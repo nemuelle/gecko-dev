@@ -507,8 +507,17 @@ partial namespace ChromeUtils {
   [ChromeOnly]
   void setFxrProjectionMode(DOMString aMode);
 
+  /**
+   * Supports changing the scale [...and window size...] of an FxR PC window
+   */
   [ChromeOnly]
   void setFxrSizeScale(unsigned long long aOuterwindowID, float scale);
+
+  /**
+   * Supports moving an FxR PC window in space
+   */
+  [ChromeOnly]
+  void setFxrMoveOverlay(unsigned long long aOuterwindowID, boolean enable);
 };
 
 /*

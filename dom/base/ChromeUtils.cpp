@@ -1382,4 +1382,11 @@ void ChromeUtils::SetFxrSizeScale(const GlobalObject& aGlobal,
   FxRWindowManager::GetInstance()->SetOverlayScale(aOuterwindowID, aScale);
 }
 
+/* static */
+void ChromeUtils::SetFxrMoveOverlay(const GlobalObject& aGlobal,
+  unsigned long long aOuterwindowID,
+  bool enable) {
+  FxRWindowManager::GetInstance()->SetOverlayMoveMode(aOuterwindowID, enable);
+}
+
 }  // namespace mozilla::dom

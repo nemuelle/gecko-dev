@@ -229,7 +229,12 @@ class ChromeUtils {
                                    const nsAString& aState);
   static void SetFxrProjectionMode(const GlobalObject& aGlobal,
                                    const nsAString& aMode);
-  static void SetFxrSizeScale(const GlobalObject& aGlobal, const unsigned long long aOuterwindowID, const float scale);
+  static void SetFxrSizeScale(const GlobalObject& aGlobal,
+                              const unsigned long long aOuterwindowID,
+                              const float scale);
+  static void SetFxrMoveOverlay(const GlobalObject& aGlobal,
+                                unsigned long long aOuterwindowID,
+                                bool enable);
 };
 
 }  // namespace dom

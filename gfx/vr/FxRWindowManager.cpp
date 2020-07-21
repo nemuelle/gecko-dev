@@ -17,22 +17,27 @@
 
 #include "mozilla/dom/MediaControlService.h"
 
-// FxRWindowManager is a singleton in the Main/UI process
-static mozilla::StaticAutoPtr<FxRWindowManager> sFxrWinMgrInstance;
-
-// Default window transform
-vr::HmdMatrix34_t FxRWindowManager::s_DefaultOverlayTransform = {{
-    {1.0f, 0.0f, 0.0f, 0.0f},  // no move in x direction
-    {0.0f, 1.0f, 0.0f, 2.0f},  // +y to move it up
-    {0.0f, 0.0f, 1.0f, -2.0f}  // -z to move it forward from the origin
-}};
-// Default window width, in meters
-float FxRWindowManager::s_DefaultOverlayWidth = 4.0f;
-
 // To view console logging output for FxRWindowManager, add
 //     --MOZ_LOG=FxRWindowManager:5
 // to cmd line
 static mozilla::LazyLogModule gFxrWinLog("FxRWindowManager");
+
+// FxRWindowManager is a singleton in the Main/UI process
+static mozilla::StaticAutoPtr<FxRWindowManager> sFxrWinMgrInstance;
+
+// Default window width, in meters
+float s_DefaultOverlayWidth = 2.0f;
+float s_DefaultOverlayDistance = 2.0f;
+// Default window transform, in front of the user and facing the origin 
+vr::HmdMatrix34_t s_DefaultOverlayTransform = {{
+    // no move in x direction
+    {1.0f, 0.0f, 0.0f, 0.0f},
+    // +y to move it up
+    {0.0f, 1.0f, 0.0f, 1.0f},
+    // -z to move it forward from the origin
+    {0.0f, 0.0f, 1.0f, -s_DefaultOverlayDistance}
+}};
+
 
 FxRWindowManager* FxRWindowManager::GetInstance() {
   if (sFxrWinMgrInstance == nullptr) {
@@ -48,8 +53,6 @@ FxRWindowManager::FxRWindowManager()
       mDxgiAdapterIndex(-1),
       mIsOverlayPumpActive(false),
       mOverlayPumpThread(nullptr),
-      mFxRWindow({0}),
-      mTransportWindow({0}),
       mIsInFullscreen(false) {}
 
 FxRWindowManager::~FxRWindowManager() {
@@ -190,7 +193,7 @@ void FxRWindowManager::CleanupWindow(FxRWindowManager::FxRWindow& fxrWindow) {
   fxrWindow.mWidget->Release();
 
   // Now, clear the state so that another window can be created later
-  fxrWindow = {0};
+  fxrWindow.Reset();
 
   mozilla::Unused << overlayError;
 }
@@ -267,6 +270,140 @@ void FxRWindowManager::SetOverlayScale(uint64_t aOuterWindowID, float aScale) {
     MOZ_ASSERT(overlayError == vr::VROverlayError_None);
     mozilla::Unused << overlayError;
   }
+}
+
+void FxRWindowManager::SetOverlayMoveMode(uint64_t aOuterWindowID, bool aEnable) {
+  MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+    ("FxRWindowManager::SetOverlayMoveMode -- (%s)", aEnable ? "true" : "false"));
+
+  if (IsFxRWindow(aOuterWindowID)) {
+    // Changing this variable will be reflected while processing VR events via
+    // HandleOverlayMove
+    mFxRWindow.mIsMoving = aEnable;
+  }
+}
+
+// This function updates an overlay window's position in space based on the
+// cursor's position in the window. The overlay stays "under" the cursor in 3D
+// space, seemingly moving on a cylinder around where the user is standing.
+//
+// There are two inputs from OpenVR to calculate how to move:
+// - The current pose of the HMD, in global coordinates
+// - The 2D position of the cursor on the overlay, transformed into global
+//   coordinates
+// The cursor's input (i.e., mouse input via the controller) moves the overlay
+// left/right (along x-axis) or up/down (along y-axis). To move the overlay
+// forward/backward (along z-axis), the user must physically move (i.e., change
+// the position of the HMD). 
+//
+// Thus, the final matrix set for the overlay results in
+// - Yaw rotates to ensure that the overlay always faces the headset
+// - Pitch/Roll is constant (i.e., straight upright perpendicular to the floor)
+// - 3D point is positioned at the middle of the overlay where the cursor/
+//   reticle intersects the overlay at a constant distance from the headset
+//
+// When the supplied VREvent is consumed for moving the window, this function
+// returns true; otherwise, it returns false to indicate that the caller should
+// still process the event.
+// 
+// Note: for some reason, trace logging can disrupt functionality, probably
+// because it introduces notable lag that impacts position and transform data.
+bool FxRWindowManager::HandleOverlayMove(FxRWindow& fxrWindow, vr::VREvent_t& aEvent) {
+  if (!fxrWindow.mIsMoving) {
+    return false;
+  }
+
+  if (aEvent.eventType == vr::VREvent_MouseMove) {
+    MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+      ("FxRWindowManager::HandleOverlayMove -- moving overlay", nullptr));    
+    
+    const vr::VREvent_Mouse_t data = aEvent.data.mouse;
+
+    // First, get the world position of where the pointer intersects the window
+    // and create a point for it.
+    const vr::HmdVector2_t coordinatesInOverlay = { data.x, data.y };    
+    vr::HmdMatrix34_t mouseCoordTransform;
+    vr::VROverlayError overlayError =
+      vr::VROverlay()->GetTransformForOverlayCoordinates(
+        mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
+        coordinatesInOverlay, &mouseCoordTransform);
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+
+    mozilla::gfx::Point3D mouseCoord = mozilla::gfx::Point3D(
+      mouseCoordTransform.m[0][3], // x
+      mouseCoordTransform.m[1][3], // y
+      mouseCoordTransform.m[2][3]  // z
+    );
+
+    // Next, capture the current headpose to get the HMD's position in space.
+    vr::TrackedDevicePose_t currentHeadPoseData;
+    vr::VRSystem()->GetDeviceToAbsoluteTrackingPose(
+      vr::TrackingUniverseStanding,
+      0, // fPredictedSecondsToPhotonsFromNow
+      &currentHeadPoseData,
+      1 // unTrackedDevicePoseArrayCount
+    );
+    const vr::HmdMatrix34_t currentHeadPose = 
+      currentHeadPoseData.mDeviceToAbsoluteTracking;    
+    
+    // Now, calculate the rotation vectors of the overlay such that the overlay
+    // always faces the HMD.    
+
+    // Since the overlay will be upright, start with a normalized vertical axis.
+    const mozilla::gfx::Point3D lookAtY = mozilla::gfx::Point3D(0.0, 1.0, 0.0);
+
+    // Calculate the vector between the overlay and the HMD on the same plane
+    // (i.e., the point of the HMD at the same height as the mouse).
+    const mozilla::gfx::Point3D hmdCoordAtMouseHeight =
+      mozilla::gfx::Point3D(
+        currentHeadPose.m[0][3],  // x
+        mouseCoord[1],            // y 
+        currentHeadPose.m[2][3]   // z
+      );
+    mozilla::gfx::Point3D lookAtZ = hmdCoordAtMouseHeight - mouseCoord;
+    lookAtZ.Normalize();
+
+    // The final vector is simply the cross product of the two known vectors
+    // (i.e, the tangent of the cylinder to which the overlay is bound).
+    mozilla::gfx::Point3D lookAtX = lookAtY.CrossProduct(lookAtZ);
+    lookAtX.Normalize();
+
+    // Update the position of the overlay so that it is at a constant distance
+    // from the HMD along the vector between the HMD and the mouse. This point
+    // will be the new center of the overlay.
+    float moveBy =
+      mouseCoord.Distance(hmdCoordAtMouseHeight) - s_DefaultOverlayDistance;
+    mouseCoord.MoveBy(
+      lookAtZ[0] * moveBy, // x
+      lookAtZ[1] * moveBy, // y
+      lookAtZ[2] * moveBy  // z
+    );
+
+    // Finally, create the transform matrix using the rotation and position
+    // vectors/ calculated above and set the matrix on the overlay.
+    const vr::HmdMatrix34_t newPosition = { {
+      {lookAtX[0], lookAtY[0], lookAtZ[0], mouseCoord[0]},
+      {lookAtX[1], lookAtY[1], lookAtZ[1], mouseCoord[1]},
+      {lookAtX[2], lookAtY[2], lookAtZ[2], mouseCoord[2]}
+    } };
+
+    overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+      mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
+      &newPosition);
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+    mozilla::Unused << overlayError;
+
+    return true;
+  }
+  else if (aEvent.eventType == vr::VREvent_MouseButtonUp
+    || aEvent.eventType == vr::VREvent_OverlayFocusChanged) {
+    MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+      ("FxRWindowManager::HandleOverlayMove -- move complete", nullptr));
+
+    fxrWindow.mIsMoving = false;
+  }
+
+  return false;
 }
 
 /* FxRWindow Input management */
@@ -357,7 +494,8 @@ void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
                vr::VRSystem()->GetEventTypeNameFromEnum(
                    (vr::EVREventType)(vrEvent.eventType))));
     }
-
+    
+    
     switch (vrEvent.eventType) {
       case vr::VREvent_ScrollDiscrete:
       case vr::VREvent_MouseMove:
@@ -367,12 +505,14 @@ void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
       case vr::VREvent_ButtonUnpress:
       case vr::VREvent_KeyboardCharInput:
       case vr::VREvent_OverlayFocusChanged: {
-        fxrWindow.mEventsVector.emplace_back(vrEvent);
+        if (!HandleOverlayMove(fxrWindow, vrEvent)) {
+          fxrWindow.mEventsVector.emplace_back(vrEvent);
+        }
         break;
       }
       default:
         break;
-    }
+    }    
   }
 
   // Post message to UI thread that new events are waiting
