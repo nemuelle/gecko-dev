@@ -114,6 +114,10 @@ struct BasePoint3D {
 
   T Length() const { return sqrt(x * x + y * y + z * z); }
 
+  T Distance(const Sub& aPoint) const {
+    return sqrt((x - aPoint.x) * (x - aPoint.x) + (y - aPoint.y) * (y - aPoint.y) + (z - aPoint.z) * (z - aPoint.z));
+  }
+
   // Invalid for points with distance from origin of 0.
   void Normalize() { *this /= Length(); }
 

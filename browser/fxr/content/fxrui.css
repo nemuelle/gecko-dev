@@ -28,17 +28,22 @@ body {
 }
 
 .winmgm_container {
-  margin: 10px;
-  padding: 10px;
+  margin: 15px;
 }
 
 .resize_container {
-  margin-block: 15px;
+  overflow: hidden;
+
+  margin-block-end: 15px;
+  max-height: 100%;
+
+ transition-property: all;
+ transition-duration: 200ms;
 }
 
 .container_hidden {
-  display: none;
-  opacity: 0;
+  max-height: 0;
+  margin-block: 0;
 }
 
 /* Sizing and positioning properties for all icons
@@ -135,6 +140,17 @@ body {
   border-radius: 0;
   margin: 0;
   padding: 0;
+}
+
+.icon_modal {
+  width: 150px;
+  height: 150px;
+
+  border-radius: 100px;
+
+  padding: 25px;
+
+  -moz-context-properties: fill;
 }
 
 .urlbar_container {
