@@ -1380,5 +1380,10 @@ void ChromeUtils::SetFxrKeyboardVisibility(const GlobalObject& aGlobal,
   }
 }
 
+void ChromeUtils::ToggleFxrWindowFocus(const GlobalObject& aGlobal,
+  unsigned long long aOuterwindowID) {
+  FxRWindowManager::GetInstance()->ToggleOverlayInteractivity(aOuterwindowID);
+}
+
 }  // namespace dom
 }  // namespace mozilla
