@@ -251,6 +251,7 @@ function setupUrlBar() {
 function setupWinManagementButtons() {
   let aryWinMgmtButtons = [
     "eCloseWindow",
+    "eFocusWindow",
     "eResizeWindow",
     "eResize3x",
     "eResize2x",
@@ -264,6 +265,10 @@ function setupWinManagementButtons() {
       switch (this.id) {
         case "eCloseWindow":
           window.close();
+          break;
+
+        case "eFocusWindow":
+          ChromeUtils.toggleFxrWindowFocus(window.windowUtils.outerWindowID);
           break;
 
         case "eResizeWindow":

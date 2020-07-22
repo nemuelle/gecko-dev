@@ -240,6 +240,8 @@ class ChromeUtils {
                                        unsigned long long aOuterwindowID,
                                        bool visible);
 
+  static void ToggleFxrWindowFocus(const GlobalObject& aGlobal,
+                                   unsigned long long aOuterwindowID);
 };
 
 }  // namespace dom

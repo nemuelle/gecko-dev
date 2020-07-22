@@ -109,6 +109,9 @@ body {
 .icon_close {  
   background-image: url("assets/icon-stop-reload.svg");
 }
+.icon_focus {
+  background-image: url("assets/import.svg");
+}
 .icon_05x {
   background-image: url("assets/icon-0.5x.svg");
 }

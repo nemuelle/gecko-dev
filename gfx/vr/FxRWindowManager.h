@@ -83,6 +83,8 @@ class FxRWindowManager final {
 
  public:
   static FxRWindowManager* GetInstance();
+  static bool HasInstance();
+  static bool TryFocusExistingInstance();
   ~FxRWindowManager();
 
   bool VRinit();
@@ -106,12 +108,15 @@ class FxRWindowManager final {
 
   void OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
   void OnFullScreenChange(uint64_t aOuterWindowID, bool aIsFullScreen);
+  void ToggleOverlayInteractivity(uint64_t aOuterWindowID);
 
   void SetPlayMediaState(const nsAString& aState);
   void SetProjectionMode(const nsAString& aMode);
 
  private:
   FxRWindowManager();
+
+  void MakeOverlayInteractive(FxRWindow& fxrWindow, bool aInteractive);
 
   static void InitWindow(FxRWindow& newWindow, nsPIDOMWindowOuter* aWindow);
   static void CleanupWindow(FxRWindow& fxrWindow);

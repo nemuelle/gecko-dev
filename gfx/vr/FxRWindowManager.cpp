@@ -50,6 +50,10 @@ FxRWindowManager* FxRWindowManager::GetInstance() {
   return sFxrWinMgrInstance;
 }
 
+bool FxRWindowManager::HasInstance() {
+  return sFxrWinMgrInstance != nullptr;
+}
+
 FxRWindowManager::FxRWindowManager()
     : mVrApp(nullptr),
       mDxgiAdapterIndex(-1),
@@ -90,6 +94,19 @@ void FxRWindowManager::SetRenderPid(uint64_t aOverlayId, uint32_t aPid) {
       vr::VROverlay()->SetOverlayRenderingPid(aOverlayId, aPid);
   MOZ_ASSERT(overlayError == vr::VROverlayError_None);
   mozilla::Unused << overlayError;
+}
+
+/* static */
+bool FxRWindowManager::TryFocusExistingInstance() {
+  if (HasInstance() && GetInstance()->mFxRWindow.mWindow != nullptr) {
+    GetInstance()->MakeOverlayInteractive(
+      GetInstance()->mFxRWindow,
+      true);
+    return true;
+  }
+  else {
+    return false;
+  }
 }
 
 /* FxRWindow Helper Methods */
@@ -614,6 +631,37 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
   }
 
   window->DispatchPendingEvents();
+}
+
+void FxRWindowManager::ToggleOverlayInteractivity(uint64_t aOuterWindowID) {
+
+  bool oldValue;
+  vr::VROverlayError overlayError = vr::VROverlay()->GetOverlayFlag(
+    mFxRWindow.mOverlayHandle,
+    vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible,
+    &oldValue);
+
+  if (overlayError == vr::VROverlayError_None) {
+    overlayError = vr::VROverlay()->SetOverlayFlag(
+      mFxRWindow.mOverlayHandle,
+      vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible,
+      !oldValue);
+
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+  }
+}
+
+void FxRWindowManager::MakeOverlayInteractive(
+  FxRWindowManager::FxRWindow& fxrWindow,
+  bool aInteractive) {
+
+  vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayFlag(
+    fxrWindow.mOverlayHandle,
+    vr::VROverlayFlags_MakeOverlaysInteractiveIfVisible,
+    aInteractive);
+
+  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+  mozilla::Unused << overlayError;
 }
 
 void FxRWindowManager::HandleMouseEvent(FxRWindowManager::FxRWindow& fxrWindow,

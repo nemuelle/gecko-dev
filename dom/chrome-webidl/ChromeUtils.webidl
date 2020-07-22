@@ -524,6 +524,12 @@ partial namespace ChromeUtils {
    */
   [ChromeOnly]
   void setFxrKeyboardVisibility(unsigned long long aOuterwindowID, boolean visible);
+  
+  /**
+   * Supports changing the interactivity state of the FxR PC overlay window
+   */
+  [ChromeOnly]
+  void toggleFxrWindowFocus(unsigned long long aOuterwindowID);
 };
 
 /*
