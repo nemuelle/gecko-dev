@@ -101,6 +101,7 @@ class FxRWindowManager final {
 
   void ProcessOverlayEvents(nsWindow* window);
   void ShowVirtualKeyboard(uint64_t aOverlayId);
+  void ShowVirtualKeyboardForWindow(uint64_t aOuterWindowID);
   void HideVirtualKeyboard();
 
   void OnWebXRPresentationChange(uint64_t aOuterWindowID, bool isPresenting);
