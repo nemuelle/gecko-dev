@@ -235,6 +235,11 @@ class ChromeUtils {
   static void SetFxrMoveOverlay(const GlobalObject& aGlobal,
                                 unsigned long long aOuterwindowID,
                                 bool enable);
+
+  static void SetFxrKeyboardVisibility(const GlobalObject& aGlobal,
+                                       unsigned long long aOuterwindowID,
+                                       bool visible);
+
 };
 
 }  // namespace dom

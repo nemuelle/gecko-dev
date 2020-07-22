@@ -735,6 +735,12 @@ void FxRWindowManager::HandleKeyboardEvent(
   }
 }
 
+void FxRWindowManager::ShowVirtualKeyboardForWindow(uint64_t aOuterWindowID) {
+  if (IsFxRWindow(aOuterWindowID)) {
+    ShowVirtualKeyboard(mFxRWindow.mOverlayHandle);
+  }
+}
+
 void FxRWindowManager::ShowVirtualKeyboard(uint64_t aOverlayId) {
   // Note: bUseMinimalMode set to true so that each char arrives as an event.
   vr::VROverlayError overlayError = vr::VROverlay()->ShowKeyboardForOverlay(

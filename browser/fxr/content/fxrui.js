@@ -234,6 +234,7 @@ function setupUrlBar() {
 
       browser.loadUrlWithSystemPrincipal(preferredURI.spec);
       browser.focus();
+      ChromeUtils.setFxrKeyboardVisibility(window.windowUtils.outerWindowID, false);
     }
   });
 

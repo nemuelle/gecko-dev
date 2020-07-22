@@ -518,6 +518,12 @@ partial namespace ChromeUtils {
    */
   [ChromeOnly]
   void setFxrMoveOverlay(unsigned long long aOuterwindowID, boolean enable);
+
+  /**
+   * Supports showing/hiding the virtual keyboard
+   */
+  [ChromeOnly]
+  void setFxrKeyboardVisibility(unsigned long long aOuterwindowID, boolean visible);
 };
 
 /*
