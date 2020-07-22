@@ -1379,5 +1379,16 @@ void ChromeUtils::SetFxrMoveOverlay(const GlobalObject& aGlobal,
   FxRWindowManager::GetInstance()->SetOverlayMoveMode(aOuterwindowID, enable);
 }
 
+void ChromeUtils::SetFxrKeyboardVisibility(const GlobalObject& aGlobal,
+  unsigned long long aOuterwindowID,
+  bool visible) {
+  if (visible) {
+    FxRWindowManager::GetInstance()->ShowVirtualKeyboard(aOuterwindowID);
+  }
+  else {
+    FxRWindowManager::GetInstance()->HideVirtualKeyboard();
+  }
+}
+
 }  // namespace dom
 }  // namespace mozilla

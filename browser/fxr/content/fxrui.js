@@ -232,6 +232,7 @@ function setupUrlBar() {
 
       browser.loadUrlWithSystemPrincipal(uriToLoad.spec);
       browser.focus();
+      ChromeUtils.setFxrKeyboardVisibility(window.windowUtils.outerWindowID, false);
     }
   });
 
