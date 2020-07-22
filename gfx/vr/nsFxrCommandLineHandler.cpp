@@ -79,6 +79,10 @@ nsFxrCommandLineHandler::Handle(nsICommandLine* aCmdLine) {
 
     aCmdLine->SetPreventDefault(true);
 
+    if (FxRWindowManager::TryFocusExistingInstance()) {
+      return NS_OK;
+    }    
+
     nsCOMPtr<nsIWindowWatcher> wwatch =
         do_GetService(NS_WINDOWWATCHER_CONTRACTID);
     NS_ENSURE_TRUE(wwatch, NS_ERROR_FAILURE);
