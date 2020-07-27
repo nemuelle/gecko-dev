@@ -214,7 +214,8 @@ body {
 /* Hide the navbar when in fullscreen so that <browser> can
  * fill the entire viewport
  */
-:root[inFullScreen] .navbar_container {
+:root[inFullScreen] .navbar_container,
+:root[inFullScreen] .winmgm_container {
   display:none;
 }
 
