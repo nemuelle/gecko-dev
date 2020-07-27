@@ -17,6 +17,8 @@
 
 #include "mozilla/dom/MediaControlService.h"
 
+#include "service/OpenVRSession.h"
+
 // To view console logging output for FxRWindowManager, add
 //     --MOZ_LOG=FxRWindowManager:5
 // to cmd line
@@ -75,6 +77,36 @@ bool FxRWindowManager::VRinit() {
     if (eError == vr::VRInitError_None) {
       mVrApp->GetDXGIOutputInfo(&mDxgiAdapterIndex);
       MOZ_ASSERT(mDxgiAdapterIndex != -1);
+
+      // **TEMPORARY WORKAROUND**
+      // Both the main process (where this class runs) and the VR process (via
+      // WebVR/XR) interact with SteamVR/OpenVR. As such, both processes end
+      // up with the same appkey (system.generated.firefox.exe) even though
+      // each process initializes with a different type of application type.
+      // This leads to some shared config/data, including the action manifest
+      // between the two processes. Because the UI process launches first, it
+      // must be responsible for setting this manifest. According to the header
+      // file, the action manifest must be set before the first call to
+      // IVRInput::UpdateActionState or IVRSystem::PollNextEvent.
+      // 
+      // To keep behavior consistent, OpenVRSession's function is refactored
+      // into a public static function so that this class can call it and set
+      // the action manifest. It does not involve synchronizing the manifest
+      // and binding paths main proc and GPU proc (as it is between VR proc and
+      // GPU proc, see OpenVRControllerManifestManager). But, this can also be
+      // fixed if there are synchronization problems.
+      // 
+      // Note: Setting the action manifest from the main/UI process is a
+      // temporary fix. The long-lasting fix is to move all OpenVR calls into
+      // the VR process (even for FxR) should to avoid this problem. Also, the
+      // main process becomes responsible for deleting the temp files (via
+      // passing nullptr for VRParent).
+      //
+      // Note: SetupContollerActions must be done before any overlays are
+      // created because it uses the presence of an overlay to determine whether
+      // or not FxR is running.
+      mozilla::gfx::ControllerInfo controllerHand[mozilla::gfx::OpenVRHand::Total];
+      mozilla::gfx::OpenVRSession::SetupContollerActions(nullptr, controllerHand);
     }
   }
 
@@ -516,7 +548,6 @@ void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
                vr::VRSystem()->GetEventTypeNameFromEnum(
                    (vr::EVREventType)(vrEvent.eventType))));
     }
-    
     
     switch (vrEvent.eventType) {
       case vr::VREvent_ScrollDiscrete:
