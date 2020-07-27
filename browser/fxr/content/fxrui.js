@@ -238,9 +238,15 @@ function setupUrlBar() {
     }
   });
 
-  // Upon focus, highlight the whole URL
+  // Upon focus, highlight the whole URL if not already highlighted. This
+  // allows for all text to be replaced when typing. Otherwise, if it is
+  // already highlighted, then allow the cursor to be positioned where
+  // the user clicked.
   urlInput.addEventListener("focus", function() {
-    urlInput.select();
+    if ((urlInput.selectionEnd - urlInput.selectionStart)
+          !== urlInput.value.length) {
+      urlInput.select();
+    }
   });
 }
 

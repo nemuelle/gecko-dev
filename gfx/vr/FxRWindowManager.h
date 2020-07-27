@@ -159,6 +159,7 @@ class FxRWindowManager final {
   FxRWindow mTransportWindow;
 
   bool mIsInFullscreen;
+  bool mIsVirtualKeyboardVisible;
 
   // Members for projection mode toggling
   int mCurrentProjectionIndex = 0;

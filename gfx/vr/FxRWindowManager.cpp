@@ -61,7 +61,8 @@ FxRWindowManager::FxRWindowManager()
       mDxgiAdapterIndex(-1),
       mIsOverlayPumpActive(false),
       mOverlayPumpThread(nullptr),
-      mIsInFullscreen(false) {}
+      mIsInFullscreen(false),
+      mIsVirtualKeyboardVisible(false) {}
 
 FxRWindowManager::~FxRWindowManager() {
   MOZ_ASSERT(mFxRWindow.mOverlayHandle == 0);
@@ -557,6 +558,7 @@ void FxRWindowManager::CollectOverlayEvents(FxRWindow& fxrWindow) {
       case vr::VREvent_ButtonPress:
       case vr::VREvent_ButtonUnpress:
       case vr::VREvent_KeyboardCharInput:
+      case vr::VREvent_KeyboardClosed:
       case vr::VREvent_OverlayFocusChanged: {
         if (!HandleOverlayMove(fxrWindow, vrEvent)) {
           fxrWindow.mEventsVector.emplace_back(vrEvent);
@@ -639,6 +641,11 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
         break;
       }
 
+      case vr::VREvent_KeyboardClosed: {
+        mIsVirtualKeyboardVisible = false;
+        break;
+      }
+
       case vr::VREvent_OverlayFocusChanged: {
         // As the Overlay's focus changes, update how Firefox sees the focus
         // state of this window. This is especially important so that text
@@ -647,15 +654,21 @@ void FxRWindowManager::ProcessOverlayEvents(nsWindow* window) {
         // participates in the same focus management as windows on the
         // desktop, so the overlay can steal focus from a desktop Firefox
         // window and vice-versa.
+        // Note: when the focus changes while the virtual keyboard is visible,
+        // keep the focus state the same for the firefox window. The keyboard
+        // represents another overlay, so no need for Firefox to change focus
+        // state in this case.
 
-        vr::VREvent_Overlay_t data = iter->data.overlay;
+        if (!mIsVirtualKeyboardVisible) {
+          vr::VREvent_Overlay_t data = iter->data.overlay;
 
-        bool isFocused = data.overlayHandle == fxrWindow.mOverlayHandle;
+          bool isFocused = data.overlayHandle == fxrWindow.mOverlayHandle;
 
-        MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
-                ("Overlay focus: %s", isFocused ? "true" : "false"));
+          MOZ_LOG(gFxrWinLog, mozilla::LogLevel::Info,
+                  ("Overlay focus: %s", isFocused ? "true" : "false"));
 
-        window->DispatchFocusToTopLevelWindow(isFocused);
+          window->DispatchFocusToTopLevelWindow(isFocused);
+        }
         break;
       }
     }
@@ -833,21 +846,25 @@ void FxRWindowManager::ShowVirtualKeyboard(uint64_t aOverlayId) {
       0       // uint64_t uUserValue
   );
 
-  MOZ_ASSERT(overlayError == vr::VROverlayError_None ||
-             overlayError == vr::VROverlayError_KeyboardAlreadyInUse);
+  if (overlayError == vr::VROverlayError_None ||
+    overlayError == vr::VROverlayError_KeyboardAlreadyInUse) {
+    mIsVirtualKeyboardVisible = true;
 
-  // Now, ensure that the keyboard doesn't overlap the overlay by providing a
-  // rect for OpenVR to avoid (i.e., the whole overlay texture).
-  uint32_t width = 0;
-  uint32_t height = 0;
-  overlayError =
-      vr::VROverlay()->GetOverlayTextureSize(aOverlayId, &width, &height);
-  vr::HmdRect2_t rect = {{0.0f, (float)height}, {(float)width, 0.0f}};
-  vr::VROverlay()->SetKeyboardPositionForOverlay(aOverlayId, rect);
+    // Now, ensure that the keyboard doesn't overlap the overlay by providing a
+    // rect for OpenVR to avoid (i.e., the whole overlay texture).
+    uint32_t width = 0;
+    uint32_t height = 0;
+    overlayError =
+        vr::VROverlay()->GetOverlayTextureSize(aOverlayId, &width, &height);
+    vr::HmdRect2_t rect = {{0.0f, (float)height}, {(float)width, 0.0f}};
+    vr::VROverlay()->SetKeyboardPositionForOverlay(aOverlayId, rect);
 
-  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
-  MOZ_ASSERT(width != 0 && height != 0);
-  mozilla::Unused << overlayError;
+    MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+    MOZ_ASSERT(width != 0 && height != 0);
+  }
+  else {
+    MOZ_ASSERT(false, "Failed to show virtual keyboard");
+  }
 }
 
 void FxRWindowManager::HideVirtualKeyboard() {

@@ -184,6 +184,11 @@ body {
 }
 
 .urlbar_input {
+  /* Override window-default behavior of not being able to select anything in
+   * the UI so that users can select in the search box.
+   */
+  user-select: text;
+
   background-color: transparent;
 
   flex-grow: 1;
