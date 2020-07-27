@@ -260,17 +260,18 @@ bool FxRWindowManager::CreateOverlayForWindow(FxRWindow& newWindow,
   );
 
   if (overlayError == vr::VROverlayError_None) {
-    // Start with default width of 4m
+    newWindow.mOverlayWidth = width;
     overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
       newWindow.mOverlayHandle,
-      width
+      newWindow.mOverlayWidth
     );
 
     if (overlayError == vr::VROverlayError_None) {
       // Set the transform for the overlay position
+      newWindow.mOverlayPosition = s_DefaultOverlayTransform;
       overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
           newWindow.mOverlayHandle, vr::TrackingUniverseStanding,
-          &s_DefaultOverlayTransform);
+          &newWindow.mOverlayPosition);
 
       if (overlayError == vr::VROverlayError_None) {
         overlayError = vr::VROverlay()->SetOverlayFlag(
@@ -314,9 +315,11 @@ void FxRWindowManager::SetOverlayScale(uint64_t aOuterWindowID, float aScale) {
     ("FxRWindowManager::SetOverlayScale -- (%f)", aScale));
 
   if (IsFxRWindow(aOuterWindowID)) {
+    mFxRWindow.mOverlayWidth = s_DefaultOverlayWidth * aScale;
+
     vr::VROverlayError overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
       mFxRWindow.mOverlayHandle,
-      s_DefaultOverlayWidth * aScale
+      mFxRWindow.mOverlayWidth
     );
 
     MOZ_ASSERT(overlayError == vr::VROverlayError_None);
@@ -436,7 +439,7 @@ bool FxRWindowManager::HandleOverlayMove(FxRWindow& fxrWindow, vr::VREvent_t& aE
 
     // Finally, create the transform matrix using the rotation and position
     // vectors/ calculated above and set the matrix on the overlay.
-    const vr::HmdMatrix34_t newPosition = { {
+    mFxRWindow.mOverlayPosition = { {
       {lookAtX[0], lookAtY[0], lookAtZ[0], mouseCoord[0]},
       {lookAtX[1], lookAtY[1], lookAtZ[1], mouseCoord[1]},
       {lookAtX[2], lookAtY[2], lookAtZ[2], mouseCoord[2]}
@@ -444,7 +447,7 @@ bool FxRWindowManager::HandleOverlayMove(FxRWindow& fxrWindow, vr::VREvent_t& aE
 
     overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
       mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
-      &newPosition);
+      &mFxRWindow.mOverlayPosition);
     MOZ_ASSERT(overlayError == vr::VROverlayError_None);
     mozilla::Unused << overlayError;
 
@@ -990,8 +993,9 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
           &transform);
     }
   } else {
+    // Set width/size back to most recent size
     overlayError = vr::VROverlay()->SetOverlayWidthInMeters(
-        mFxRWindow.mOverlayHandle, s_DefaultOverlayWidth);
+        mFxRWindow.mOverlayHandle, mFxRWindow.mOverlayWidth);
 
     if (overlayError == vr::VROverlayError_None) {
       if (isStereo2D) {
@@ -1011,7 +1015,7 @@ vr::VROverlayError FxRWindowManager::ChangeProjectionMode(
       } else {
         overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
             mFxRWindow.mOverlayHandle, vr::TrackingUniverseStanding,
-            &s_DefaultOverlayTransform);
+            &mFxRWindow.mOverlayPosition);
       }
     }
   }
@@ -1078,17 +1082,6 @@ void FxRWindowManager::EnsureTransportControls() {
       nsCOMPtr<nsIWidget> newWidget =
         mozilla::widget::WidgetUtils::DOMWindowToWidget(newWindowOuter);
       newWidget->RequestFxrOutput(mTransportWindow.mOverlayHandle);
-
-      // Set the transform for the overlay position
-      vr::HmdMatrix34_t transform = {{
-          {1.0f, 0.0f, 0.0f, 0.0f},  // no move in x direction
-          {0.0f, 1.0f, 0.0f, 0.9f},  // +y to move it up
-          {0.0f, 0.0f, 1.0f, -1.9f}  // -z to move it forward from the origin
-      }};
-      overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
-          mTransportWindow.mOverlayHandle, vr::TrackingUniverseStanding,
-          &transform);
-      MOZ_ASSERT(overlayError == vr::VROverlayError_None);
     }
   } else {
     // The overlay for the controls are already created, so simply show them.
@@ -1096,6 +1089,17 @@ void FxRWindowManager::EnsureTransportControls() {
         vr::VROverlay()->ShowOverlay(mTransportWindow.mOverlayHandle);
     MOZ_ASSERT(overlayError == vr::VROverlayError_None);
   }
+
+  // Set the transform for the overlay position relative to the main
+  // overlay window
+  vr::HmdMatrix34_t transform = mFxRWindow.mOverlayPosition;
+  transform.m[1][3] -= (mFxRWindow.mOverlayWidth / 3.0); // down below the main
+  transform.m[2][3] += 0.1f; // back slightly to the user
+
+  overlayError = vr::VROverlay()->SetOverlayTransformAbsolute(
+    mTransportWindow.mOverlayHandle, vr::TrackingUniverseStanding,
+    &transform);
+  MOZ_ASSERT(overlayError == vr::VROverlayError_None);
 
   mozilla::Unused << overlayError;
 }
