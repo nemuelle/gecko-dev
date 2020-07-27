@@ -63,6 +63,9 @@ class FxRWindowManager final {
     POINT mLastMousePt;
     RECT mOverlaySizeRec;
 
+    float mOverlayWidth;
+    vr::HmdMatrix34_t mOverlayPosition;
+
     FxRWindow() {
       Reset();
     }
@@ -78,6 +81,9 @@ class FxRWindowManager final {
 
       mLastMousePt = { 0 };
       mOverlaySizeRec = { 0 };
+
+      mOverlayWidth = 0;
+      mOverlayPosition = {{{0},{0},{0}}};
     }
   };
 
