@@ -21,6 +21,7 @@ class nsITimer;
 
 namespace mozilla {
 namespace gfx {
+class VRParent;
 class VRThread;
 class OpenVRControllerMapper;
 
@@ -41,7 +42,12 @@ class OpenVRSession : public VRSession {
 
   bool Initialize(mozilla::gfx::VRSystemState& aSystemState,
                   bool aDetectRuntimesOnly) override;
+
+  static bool SetupContollerActions(VRParent* aVRParent, ControllerInfo (&aControllerHand)[OpenVRHand::Total]);
+  
+  
   void Shutdown() override;
+
   void ProcessEvents(mozilla::gfx::VRSystemState& aSystemState) override;
   void StartFrame(mozilla::gfx::VRSystemState& aSystemState) override;
   bool StartPresentation() override;
@@ -82,7 +88,7 @@ class OpenVRSession : public VRSession {
   void UpdateControllerPoses(VRSystemState& aState);
   void UpdateControllerButtons(VRSystemState& aState);
   void UpdateTelemetry(VRSystemState& aSystemState);
-  bool SetupContollerActions();
+  
 
   bool SubmitFrame(const VRLayerTextureHandle& aTextureHandle,
                    ::vr::ETextureType aTextureType,

@@ -274,7 +274,7 @@ bool OpenVRSession::Initialize(mozilla::gfx::VRSystemState& aSystemState,
     Shutdown();
     return false;
   }
-  if (!SetupContollerActions()) {
+  if (!SetupContollerActions(VRProcessChild::GetVRParent(), mControllerHand)) {
     return false;
   }
 
@@ -289,11 +289,28 @@ bool OpenVRSession::Initialize(mozilla::gfx::VRSystemState& aSystemState,
 #define CreateControllerOutAction(hand, name, type) \
   ControllerAction("/actions/firefox/out/" #hand "Hand_" #name, #type)
 
-bool OpenVRSession::SetupContollerActions() {
+// Note: this function can be called from
+// - VR process in Initialize
+// - UI process in FxRWindowManager::VRinit
+bool OpenVRSession::SetupContollerActions(VRParent* aVRParent, ControllerInfo (&aControllerHand)[OpenVRHand::Total]) {
   if (!vr::VRInput()) {
     NS_WARNING("OpenVR - vr::VRInput() is null.");
     return false;
   }
+
+  // By default, load the action manifest and bindings. However, check to see
+  // if this is called from the VR process while running with FxR, in which
+  // case the UI process already loaded the manifest. If so, then don't load
+  // the files; simply set up the local member variables for OpenVRSession.
+  bool fNeedsActionManifestLoaded = true;
+  if (aVRParent != nullptr) {
+    vr::VROverlayHandle_t h;
+    vr::EVROverlayError errr = vr::VROverlay()->FindOverlay("Firefox Reality", &h);
+    if (errr == vr::VROverlayError_None) {
+      fNeedsActionManifestLoaded = false;
+    }
+  }
+
 
   // Check if this device binding file has been created.
   // If it didn't exist yet, create a new temp file.
@@ -303,174 +320,181 @@ bool OpenVRSession::SetupContollerActions() {
   nsCString knucklesManifest;
   nsCString cosmosManifest;
 
-  // Getting / Generating manifest file paths.
-  if (StaticPrefs::dom_vr_process_enabled_AtStartup()) {
-    VRParent* vrParent = VRProcessChild::GetVRParent();
-    nsCString output;
+  if (fNeedsActionManifestLoaded) {
+    // Getting / Generating manifest file paths.
+    if (aVRParent != nullptr && StaticPrefs::dom_vr_process_enabled_AtStartup()) {
+      nsCString output;
 
-    if (vrParent->GetOpenVRControllerActionPath(&output)) {
-      controllerAction = output;
-    }
+      if (aVRParent != nullptr
+        && aVRParent->GetOpenVRControllerActionPath(&output)) {
+        controllerAction = output;
+      }
 
-    if (vrParent->GetOpenVRControllerManifestPath(VRControllerType::HTCVive,
-                                                  &output)) {
-      viveManifest = output;
-    }
-    if (!viveManifest.Length() || !FileIsExisting(viveManifest)) {
-      if (!GenerateTempFileName(viveManifest)) {
-        return false;
+      if (aVRParent != nullptr
+        && aVRParent->GetOpenVRControllerManifestPath(VRControllerType::HTCVive,
+          &output)) {
+        viveManifest = output;
       }
-      OpenVRViveBinding viveBinding;
-      std::ofstream viveBindingFile(viveManifest.BeginReading());
-      if (viveBindingFile.is_open()) {
-        viveBindingFile << viveBinding.binding;
-        viveBindingFile.close();
+      if (!viveManifest.Length() || !FileIsExisting(viveManifest)) {
+        if (!GenerateTempFileName(viveManifest)) {
+          return false;
+        }
+        OpenVRViveBinding viveBinding;
+        std::ofstream viveBindingFile(viveManifest.BeginReading());
+        if (viveBindingFile.is_open()) {
+          viveBindingFile << viveBinding.binding;
+          viveBindingFile.close();
+        }
       }
-    }
 
 #if defined(XP_WIN)
-    if (vrParent->GetOpenVRControllerManifestPath(VRControllerType::MSMR,
-                                                  &output)) {
-      WMRManifest = output;
-    }
-    if (!WMRManifest.Length() || !FileIsExisting(WMRManifest)) {
-      if (!GenerateTempFileName(WMRManifest)) {
-        return false;
+      if (aVRParent != nullptr
+        && aVRParent->GetOpenVRControllerManifestPath(VRControllerType::MSMR,
+          &output)) {
+        WMRManifest = output;
       }
-      OpenVRWMRBinding WMRBinding;
-      std::ofstream WMRBindingFile(WMRManifest.BeginReading());
-      if (WMRBindingFile.is_open()) {
-        WMRBindingFile << WMRBinding.binding;
-        WMRBindingFile.close();
+      if (!WMRManifest.Length() || !FileIsExisting(WMRManifest)) {
+        if (!GenerateTempFileName(WMRManifest)) {
+          return false;
+        }
+        OpenVRWMRBinding WMRBinding;
+        std::ofstream WMRBindingFile(WMRManifest.BeginReading());
+        if (WMRBindingFile.is_open()) {
+          WMRBindingFile << WMRBinding.binding;
+          WMRBindingFile.close();
+        }
       }
-    }
 #endif
-    if (vrParent->GetOpenVRControllerManifestPath(VRControllerType::ValveIndex,
-                                                  &output)) {
-      knucklesManifest = output;
-    }
-    if (!knucklesManifest.Length() || !FileIsExisting(knucklesManifest)) {
-      if (!GenerateTempFileName(knucklesManifest)) {
-        return false;
+      if (aVRParent != nullptr
+        && aVRParent->GetOpenVRControllerManifestPath(VRControllerType::ValveIndex,
+          &output)) {
+        knucklesManifest = output;
       }
-      OpenVRKnucklesBinding knucklesBinding;
-      std::ofstream knucklesBindingFile(knucklesManifest.BeginReading());
-      if (knucklesBindingFile.is_open()) {
-        knucklesBindingFile << knucklesBinding.binding;
-        knucklesBindingFile.close();
+      if (!knucklesManifest.Length() || !FileIsExisting(knucklesManifest)) {
+        if (!GenerateTempFileName(knucklesManifest)) {
+          return false;
+        }
+        OpenVRKnucklesBinding knucklesBinding;
+        std::ofstream knucklesBindingFile(knucklesManifest.BeginReading());
+        if (knucklesBindingFile.is_open()) {
+          knucklesBindingFile << knucklesBinding.binding;
+          knucklesBindingFile.close();
+        }
+      }
+      if (aVRParent != nullptr
+        && aVRParent->GetOpenVRControllerManifestPath(
+          VRControllerType::HTCViveCosmos, &output)) {
+        cosmosManifest = output;
+      }
+      if (!cosmosManifest.Length() || !FileIsExisting(cosmosManifest)) {
+        if (!GenerateTempFileName(cosmosManifest)) {
+          return false;
+        }
+        OpenVRCosmosBinding cosmosBinding;
+        std::ofstream cosmosBindingFile(cosmosManifest.BeginReading());
+        if (cosmosBindingFile.is_open()) {
+          cosmosBindingFile << cosmosBinding.binding;
+          cosmosBindingFile.close();
+        }
       }
     }
-    if (vrParent->GetOpenVRControllerManifestPath(
-            VRControllerType::HTCViveCosmos, &output)) {
-      cosmosManifest = output;
-    }
-    if (!cosmosManifest.Length() || !FileIsExisting(cosmosManifest)) {
-      if (!GenerateTempFileName(cosmosManifest)) {
-        return false;
-      }
-      OpenVRCosmosBinding cosmosBinding;
-      std::ofstream cosmosBindingFile(cosmosManifest.BeginReading());
-      if (cosmosBindingFile.is_open()) {
-        cosmosBindingFile << cosmosBinding.binding;
-        cosmosBindingFile.close();
-      }
-    }
-  } else {
-    // Without using VR process
-    if (!sControllerActionFile) {
-      sControllerActionFile = ControllerManifestFile::CreateManifest();
-      NS_DispatchToMainThread(NS_NewRunnableFunction(
+    else {
+      // Without using VR process
+      if (!sControllerActionFile) {
+        sControllerActionFile = ControllerManifestFile::CreateManifest();
+        NS_DispatchToMainThread(NS_NewRunnableFunction(
           "ClearOnShutdown ControllerManifestFile",
           []() { ClearOnShutdown(&sControllerActionFile); }));
-    }
-    controllerAction = sControllerActionFile->GetFileName();
+      }
+      controllerAction = sControllerActionFile->GetFileName();
 
-    if (!sViveBindingFile) {
-      sViveBindingFile = ControllerManifestFile::CreateManifest();
-      NS_DispatchToMainThread(
+      if (!sViveBindingFile) {
+        sViveBindingFile = ControllerManifestFile::CreateManifest();
+        NS_DispatchToMainThread(
           NS_NewRunnableFunction("ClearOnShutdown ControllerManifestFile",
-                                 []() { ClearOnShutdown(&sViveBindingFile); }));
-    }
-    if (!sViveBindingFile->IsExisting()) {
-      nsCString viveBindingPath;
-      if (!GenerateTempFileName(viveBindingPath)) {
-        return false;
+            []() { ClearOnShutdown(&sViveBindingFile); }));
       }
-      sViveBindingFile->SetFileName(viveBindingPath.BeginReading());
-      OpenVRViveBinding viveBinding;
-      std::ofstream viveBindingFile(sViveBindingFile->GetFileName());
-      if (viveBindingFile.is_open()) {
-        viveBindingFile << viveBinding.binding;
-        viveBindingFile.close();
+      if (!sViveBindingFile->IsExisting()) {
+        nsCString viveBindingPath;
+        if (!GenerateTempFileName(viveBindingPath)) {
+          return false;
+        }
+        sViveBindingFile->SetFileName(viveBindingPath.BeginReading());
+        OpenVRViveBinding viveBinding;
+        std::ofstream viveBindingFile(sViveBindingFile->GetFileName());
+        if (viveBindingFile.is_open()) {
+          viveBindingFile << viveBinding.binding;
+          viveBindingFile.close();
+        }
       }
-    }
-    viveManifest = sViveBindingFile->GetFileName();
+      viveManifest = sViveBindingFile->GetFileName();
 
-    if (!sKnucklesBindingFile) {
-      sKnucklesBindingFile = ControllerManifestFile::CreateManifest();
-      NS_DispatchToMainThread(NS_NewRunnableFunction(
+      if (!sKnucklesBindingFile) {
+        sKnucklesBindingFile = ControllerManifestFile::CreateManifest();
+        NS_DispatchToMainThread(NS_NewRunnableFunction(
           "ClearOnShutdown ControllerManifestFile",
           []() { ClearOnShutdown(&sKnucklesBindingFile); }));
-    }
-    if (!sKnucklesBindingFile->IsExisting()) {
-      nsCString knucklesBindingPath;
-      if (!GenerateTempFileName(knucklesBindingPath)) {
-        return false;
       }
-      sKnucklesBindingFile->SetFileName(knucklesBindingPath.BeginReading());
-      OpenVRKnucklesBinding knucklesBinding;
-      std::ofstream knucklesBindingFile(sKnucklesBindingFile->GetFileName());
-      if (knucklesBindingFile.is_open()) {
-        knucklesBindingFile << knucklesBinding.binding;
-        knucklesBindingFile.close();
+      if (!sKnucklesBindingFile->IsExisting()) {
+        nsCString knucklesBindingPath;
+        if (!GenerateTempFileName(knucklesBindingPath)) {
+          return false;
+        }
+        sKnucklesBindingFile->SetFileName(knucklesBindingPath.BeginReading());
+        OpenVRKnucklesBinding knucklesBinding;
+        std::ofstream knucklesBindingFile(sKnucklesBindingFile->GetFileName());
+        if (knucklesBindingFile.is_open()) {
+          knucklesBindingFile << knucklesBinding.binding;
+          knucklesBindingFile.close();
+        }
       }
-    }
-    knucklesManifest = sKnucklesBindingFile->GetFileName();
+      knucklesManifest = sKnucklesBindingFile->GetFileName();
 
-    if (!sCosmosBindingFile) {
-      sCosmosBindingFile = ControllerManifestFile::CreateManifest();
-      NS_DispatchToMainThread(NS_NewRunnableFunction(
+      if (!sCosmosBindingFile) {
+        sCosmosBindingFile = ControllerManifestFile::CreateManifest();
+        NS_DispatchToMainThread(NS_NewRunnableFunction(
           "ClearOnShutdown ControllerManifestFile",
           []() { ClearOnShutdown(&sCosmosBindingFile); }));
-    }
-    if (!sCosmosBindingFile->IsExisting()) {
-      nsCString cosmosBindingPath;
-      if (!GenerateTempFileName(cosmosBindingPath)) {
-        return false;
       }
-      sCosmosBindingFile->SetFileName(cosmosBindingPath.BeginReading());
-      OpenVRCosmosBinding cosmosBinding;
-      std::ofstream cosmosBindingFile(sCosmosBindingFile->GetFileName());
-      if (cosmosBindingFile.is_open()) {
-        cosmosBindingFile << cosmosBinding.binding;
-        cosmosBindingFile.close();
+      if (!sCosmosBindingFile->IsExisting()) {
+        nsCString cosmosBindingPath;
+        if (!GenerateTempFileName(cosmosBindingPath)) {
+          return false;
+        }
+        sCosmosBindingFile->SetFileName(cosmosBindingPath.BeginReading());
+        OpenVRCosmosBinding cosmosBinding;
+        std::ofstream cosmosBindingFile(sCosmosBindingFile->GetFileName());
+        if (cosmosBindingFile.is_open()) {
+          cosmosBindingFile << cosmosBinding.binding;
+          cosmosBindingFile.close();
+        }
       }
-    }
-    cosmosManifest = sCosmosBindingFile->GetFileName();
+      cosmosManifest = sCosmosBindingFile->GetFileName();
 #if defined(XP_WIN)
-    if (!sWMRBindingFile) {
-      sWMRBindingFile = ControllerManifestFile::CreateManifest();
-      NS_DispatchToMainThread(
+      if (!sWMRBindingFile) {
+        sWMRBindingFile = ControllerManifestFile::CreateManifest();
+        NS_DispatchToMainThread(
           NS_NewRunnableFunction("ClearOnShutdown ControllerManifestFile",
-                                 []() { ClearOnShutdown(&sWMRBindingFile); }));
-    }
-    if (!sWMRBindingFile->IsExisting()) {
-      nsCString WMRBindingPath;
-      if (!GenerateTempFileName(WMRBindingPath)) {
-        return false;
+            []() { ClearOnShutdown(&sWMRBindingFile); }));
       }
-      sWMRBindingFile->SetFileName(WMRBindingPath.BeginReading());
-      OpenVRWMRBinding WMRBinding;
-      std::ofstream WMRBindingFile(sWMRBindingFile->GetFileName());
-      if (WMRBindingFile.is_open()) {
-        WMRBindingFile << WMRBinding.binding;
-        WMRBindingFile.close();
+      if (!sWMRBindingFile->IsExisting()) {
+        nsCString WMRBindingPath;
+        if (!GenerateTempFileName(WMRBindingPath)) {
+          return false;
+        }
+        sWMRBindingFile->SetFileName(WMRBindingPath.BeginReading());
+        OpenVRWMRBinding WMRBinding;
+        std::ofstream WMRBindingFile(sWMRBindingFile->GetFileName());
+        if (WMRBindingFile.is_open()) {
+          WMRBindingFile << WMRBinding.binding;
+          WMRBindingFile.close();
+        }
       }
-    }
-    WMRManifest = sWMRBindingFile->GetFileName();
+      WMRManifest = sWMRBindingFile->GetFileName();
 #endif
+    }
+    // End of Getting / Generating manifest file paths.
   }
-  // End of Getting / Generating manifest file paths.
 
   // Setup controller actions.
   ControllerInfo leftContollerInfo;
@@ -571,111 +595,113 @@ bool OpenVRSession::SetupContollerActions() {
   rightContollerInfo.mActionHaptic =
       CreateControllerOutAction(R, haptic, vibration);
 
-  mControllerHand[OpenVRHand::Left] = leftContollerInfo;
-  mControllerHand[OpenVRHand::Right] = rightContollerInfo;
+  aControllerHand[OpenVRHand::Left] = leftContollerInfo;
+  aControllerHand[OpenVRHand::Right] = rightContollerInfo;
 
-  if (!controllerAction.Length() || !FileIsExisting(controllerAction)) {
-    if (!GenerateTempFileName(controllerAction)) {
-      return false;
-    }
-    nsCString actionData;
-    JSONWriter actionWriter(MakeUnique<StringWriteFunc>(actionData));
-    actionWriter.Start();
+  if (fNeedsActionManifestLoaded) {
+    if (!controllerAction.Length() || !FileIsExisting(controllerAction)) {
+      if (!GenerateTempFileName(controllerAction)) {
+        return false;
+      }
+      nsCString actionData;
+      JSONWriter actionWriter(MakeUnique<StringWriteFunc>(actionData));
+      actionWriter.Start();
 
-    actionWriter.StringProperty("version",
-                                "0.1.0");  // TODO: adding a version check.
-    // "default_bindings": []
-    actionWriter.StartArrayProperty("default_bindings");
+      actionWriter.StringProperty("version",
+        "0.1.0");  // TODO: adding a version check.
+// "default_bindings": []
+      actionWriter.StartArrayProperty("default_bindings");
 
-    auto SetupActionWriterByControllerType = [&](const char* aType,
-                                                 const nsCString& aManifest) {
-      actionWriter.StartObjectElement();
-      actionWriter.StringProperty("controller_type", MakeStringSpan(aType));
-      actionWriter.StringProperty("binding_url", aManifest);
-      actionWriter.EndObject();
-    };
-    SetupActionWriterByControllerType("vive_controller", viveManifest);
-    SetupActionWriterByControllerType("knuckles", knucklesManifest);
-    SetupActionWriterByControllerType("vive_cosmos_controller", cosmosManifest);
-#if defined(XP_WIN)
-    SetupActionWriterByControllerType("holographic_controller", WMRManifest);
-#endif
-    actionWriter.EndArray();  // End "default_bindings": []
-
-    actionWriter.StartArrayProperty("actions");
-
-    for (auto& controller : mControllerHand) {
-      auto SetActionsToWriter = [&](const ControllerAction& aAction) {
+      auto SetupActionWriterByControllerType = [&](const char* aType,
+        const nsCString& aManifest) {
         actionWriter.StartObjectElement();
-        actionWriter.StringProperty("name", aAction.name);
-        actionWriter.StringProperty("type", aAction.type);
+        actionWriter.StringProperty("controller_type", MakeStringSpan(aType));
+        actionWriter.StringProperty("binding_url", aManifest);
         actionWriter.EndObject();
       };
+      SetupActionWriterByControllerType("vive_controller", viveManifest);
+      SetupActionWriterByControllerType("knuckles", knucklesManifest);
+      SetupActionWriterByControllerType("vive_cosmos_controller", cosmosManifest);
+#if defined(XP_WIN)
+      SetupActionWriterByControllerType("holographic_controller", WMRManifest);
+#endif
+      actionWriter.EndArray();  // End "default_bindings": []
 
-      SetActionsToWriter(controller.mActionPose);
-      SetActionsToWriter(controller.mActionTrackpad_Analog);
-      SetActionsToWriter(controller.mActionTrackpad_Pressed);
-      SetActionsToWriter(controller.mActionTrackpad_Touched);
-      SetActionsToWriter(controller.mActionTrigger_Value);
-      SetActionsToWriter(controller.mActionGrip_Pressed);
-      SetActionsToWriter(controller.mActionGrip_Touched);
-      SetActionsToWriter(controller.mActionMenu_Pressed);
-      SetActionsToWriter(controller.mActionMenu_Touched);
-      SetActionsToWriter(controller.mActionSystem_Pressed);
-      SetActionsToWriter(controller.mActionSystem_Touched);
-      SetActionsToWriter(controller.mActionA_Pressed);
-      SetActionsToWriter(controller.mActionA_Touched);
-      SetActionsToWriter(controller.mActionB_Pressed);
-      SetActionsToWriter(controller.mActionB_Touched);
-      SetActionsToWriter(controller.mActionThumbstick_Analog);
-      SetActionsToWriter(controller.mActionThumbstick_Pressed);
-      SetActionsToWriter(controller.mActionThumbstick_Touched);
-      SetActionsToWriter(controller.mActionFingerIndex_Value);
-      SetActionsToWriter(controller.mActionFingerMiddle_Value);
-      SetActionsToWriter(controller.mActionFingerRing_Value);
-      SetActionsToWriter(controller.mActionFingerPinky_Value);
-      SetActionsToWriter(controller.mActionBumper_Pressed);
-      SetActionsToWriter(controller.mActionHaptic);
+      actionWriter.StartArrayProperty("actions");
+
+      for (auto& controller : aControllerHand) {
+        auto SetActionsToWriter = [&](const ControllerAction& aAction) {
+          actionWriter.StartObjectElement();
+          actionWriter.StringProperty("name", aAction.name);
+          actionWriter.StringProperty("type", aAction.type);
+          actionWriter.EndObject();
+        };
+
+        SetActionsToWriter(controller.mActionPose);
+        SetActionsToWriter(controller.mActionTrackpad_Analog);
+        SetActionsToWriter(controller.mActionTrackpad_Pressed);
+        SetActionsToWriter(controller.mActionTrackpad_Touched);
+        SetActionsToWriter(controller.mActionTrigger_Value);
+        SetActionsToWriter(controller.mActionGrip_Pressed);
+        SetActionsToWriter(controller.mActionGrip_Touched);
+        SetActionsToWriter(controller.mActionMenu_Pressed);
+        SetActionsToWriter(controller.mActionMenu_Touched);
+        SetActionsToWriter(controller.mActionSystem_Pressed);
+        SetActionsToWriter(controller.mActionSystem_Touched);
+        SetActionsToWriter(controller.mActionA_Pressed);
+        SetActionsToWriter(controller.mActionA_Touched);
+        SetActionsToWriter(controller.mActionB_Pressed);
+        SetActionsToWriter(controller.mActionB_Touched);
+        SetActionsToWriter(controller.mActionThumbstick_Analog);
+        SetActionsToWriter(controller.mActionThumbstick_Pressed);
+        SetActionsToWriter(controller.mActionThumbstick_Touched);
+        SetActionsToWriter(controller.mActionFingerIndex_Value);
+        SetActionsToWriter(controller.mActionFingerMiddle_Value);
+        SetActionsToWriter(controller.mActionFingerRing_Value);
+        SetActionsToWriter(controller.mActionFingerPinky_Value);
+        SetActionsToWriter(controller.mActionBumper_Pressed);
+        SetActionsToWriter(controller.mActionHaptic);
+      }
+      actionWriter.EndArray();  // End "actions": []
+      actionWriter.End();
+
+      std::ofstream actionfile(controllerAction.BeginReading());
+      nsCString actionResult(actionData.get());
+      if (actionfile.is_open()) {
+        actionfile << actionResult.get();
+        actionfile.close();
+      }
     }
-    actionWriter.EndArray();  // End "actions": []
-    actionWriter.End();
 
-    std::ofstream actionfile(controllerAction.BeginReading());
-    nsCString actionResult(actionData.get());
-    if (actionfile.is_open()) {
-      actionfile << actionResult.get();
-      actionfile.close();
-    }
-  }
-
-  vr::EVRInputError err =
+    vr::EVRInputError err =
       vr::VRInput()->SetActionManifestPath(controllerAction.BeginReading());
-  if (err != vr::VRInputError_None) {
-    NS_WARNING("OpenVR - SetActionManifestPath failed.");
-    return false;
-  }
-  // End of setup controller actions.
+    if (err != vr::VRInputError_None) {
+      NS_WARNING("OpenVR - SetActionManifestPath failed.");
+      return false;
+    }
+    // End of setup controller actions.
 
-  // Notify the parent process these manifest files are already been recorded.
-  if (StaticPrefs::dom_vr_process_enabled_AtStartup()) {
-    NS_DispatchToMainThread(NS_NewRunnableFunction(
-        "SendOpenVRControllerActionPathToParent",
-        [controllerAction, viveManifest, WMRManifest, knucklesManifest,
-         cosmosManifest]() {
+    // Notify the parent process these manifest files are already been recorded.
+    if (aVRParent != nullptr && StaticPrefs::dom_vr_process_enabled_AtStartup()) {
+        NS_DispatchToMainThread(NS_NewRunnableFunction(
+          "SendOpenVRControllerActionPathToParent",
+          [controllerAction, viveManifest, WMRManifest, knucklesManifest,
+          cosmosManifest]() {
           VRParent* vrParent = VRProcessChild::GetVRParent();
           Unused << vrParent->SendOpenVRControllerActionPathToParent(
-              controllerAction);
+            controllerAction);
           Unused << vrParent->SendOpenVRControllerManifestPathToParent(
-              VRControllerType::HTCVive, viveManifest);
+            VRControllerType::HTCVive, viveManifest);
           Unused << vrParent->SendOpenVRControllerManifestPathToParent(
-              VRControllerType::MSMR, WMRManifest);
+            VRControllerType::MSMR, WMRManifest);
           Unused << vrParent->SendOpenVRControllerManifestPathToParent(
-              VRControllerType::ValveIndex, knucklesManifest);
+            VRControllerType::ValveIndex, knucklesManifest);
           Unused << vrParent->SendOpenVRControllerManifestPathToParent(
-              VRControllerType::HTCViveCosmos, cosmosManifest);
+            VRControllerType::HTCViveCosmos, cosmosManifest);
         }));
-  } else {
-    sControllerActionFile->SetFileName(controllerAction.BeginReading());
+    } else {
+      sControllerActionFile->SetFileName(controllerAction.BeginReading());
+    }
   }
 
   return true;
