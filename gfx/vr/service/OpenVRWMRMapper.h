@@ -18,6 +18,9 @@ class OpenVRWMRMapper : public OpenVRControllerMapper {
   virtual ~OpenVRWMRMapper() = default;
   virtual void UpdateButtons(VRControllerState& aControllerState,
                              ControllerInfo& aControllerInfo);
+
+  // Exit Present via menu button
+  virtual uint32_t GetExitPresentButtonMask() override { return 1ULL << 3; }
 };
 
 }  // namespace gfx

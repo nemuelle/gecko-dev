@@ -76,6 +76,7 @@ class OpenVRControllerMapper {
                              ControllerInfo& aControllerInfo) = 0;
   uint32_t GetButtonCount() { return mNumButtons; }
   uint32_t GetAxisCount() { return mNumAxes; }
+  virtual uint32_t GetExitPresentButtonMask() { return 0; }
 
  protected:
   void GetButtonValueFromAction(VRControllerState& aControllerState,
