@@ -112,6 +112,8 @@ class MediaControlKeySource {
   virtual void SetEnablePictureInPictureMode(bool aIsEnabled){};
   virtual void SetPositionState(const PositionState& aState){};
 
+  void OnKeyPressed(MediaControlKey aKey);
+
  protected:
   virtual ~MediaControlKeySource() = default;
   nsTArray<RefPtr<MediaControlKeyListener>> mListeners;

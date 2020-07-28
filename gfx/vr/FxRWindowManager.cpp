@@ -923,17 +923,13 @@ void FxRWindowManager::SetPlayMediaState(const nsAString& aState) {
 void FxRWindowManager::ToggleMedia() {
   RefPtr<mozilla::dom::MediaControlService> service =
       mozilla::dom::MediaControlService::GetService();
-  mozilla::dom::MediaControlKeysEventSource* source =
-      service->GetMediaControlKeysEventSource();
+  mozilla::dom::MediaControlKeySource* source =
+      service->GetMediaControlKeySource();
   mozilla::dom::MediaSessionPlaybackState state = source->GetPlaybackState();
 
-  if (state == mozilla::dom::MediaSessionPlaybackState::Playing) {
-    service->GetMediaControlKeysEventSource()->OnKeyPressed(
-        mozilla::dom::MediaControlKeysEvent::ePause);
-  } else {
-    service->GetMediaControlKeysEventSource()->OnKeyPressed(
-        mozilla::dom::MediaControlKeysEvent::ePlay);
-  }
+  source->SetPlaybackState(state == mozilla::dom::MediaSessionPlaybackState::Playing ?
+      mozilla::dom::MediaSessionPlaybackState::Paused
+      : mozilla::dom::MediaSessionPlaybackState::Playing);
 }
 
 // Forwarded from privileged javascript and supports changing projection mode
