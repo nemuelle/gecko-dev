@@ -6147,7 +6147,7 @@ void nsGlobalWindowInner::NotifyDetectXRRuntimesCompleted() {
 
   RefPtr<nsGlobalWindowInner> self(this);
   browserChild->SendIsWebVRPermissionImplicit(browserID)->Then(
-    GetCurrentThreadSerialEventTarget(), __func__,
+    GetCurrentSerialEventTarget(), __func__,
     [self](bool isAllowed) {
       if (isAllowed) {
         // This browser has implicit permission, so proceed with permission
