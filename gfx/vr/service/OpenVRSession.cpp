@@ -1078,6 +1078,37 @@ void OpenVRSession::UpdateControllerButtons(VRSystemState& aState) {
     mControllerMapper->UpdateButtons(controllerState, mControllerHand[role]);
     SetControllerSelectionAndSqueezeFrameId(
         controllerState, aState.displayState.lastSubmittedFrameId);
+    SetControllerExitPresentFrameId(aState);
+  }
+}
+
+void OpenVRSession::SetControllerExitPresentFrameId(VRSystemState& aState) {
+  // Use the specialized button to indicate that the user wants to exit
+  // presentation. Record both the press (start) and unpress (stop) so that
+  // press doesn't leak to the public WebVR/XR that the user initiated this
+  // gesture.
+
+  if (mControllerMapper->GetExitPresentButtonMask() != 0) {
+    VRControllerState state = aState.controllerState[0];
+    const bool pressed = state.buttonPressed 
+      & mControllerMapper->GetExitPresentButtonMask();
+
+    if (pressed && 
+      state.exitPresentStopFrameId >= state.exitPresentStartFrameId) {
+      // This is the first button press frame since the last time a press
+      // happened after a release, so record this frame as the start frame of
+      // a new press.
+      aState.controllerState[0].exitPresentStartFrameId =
+        aState.displayState.lastSubmittedFrameId;
+    }
+    else if (!pressed && 
+      state.exitPresentStartFrameId > state.exitPresentStopFrameId) {
+      // This is the first button release frame since the last time a release
+      // happened after a press, so record this frame as the corresponding
+      // release frame.
+      aState.controllerState[0].exitPresentStopFrameId =
+        aState.displayState.lastSubmittedFrameId;
+    }
   }
 }
 
@@ -1288,28 +1319,6 @@ void OpenVRSession::ProcessEvents(mozilla::gfx::VRSystemState& aSystemState) {
       case ::vr::EVREventType::VREvent_QuitAcknowledged:
         mShouldQuit = true;
         break;
-      case ::vr::EVREventType::VREvent_ButtonPress:
-      case ::vr::EVREventType::VREvent_ButtonUnpress: {
-        ::vr::VREvent_Controller_t controllerEvent = event.data.controller;
-
-        if (controllerEvent.button == ::vr::EVRButtonId::k_EButton_Grip) {
-          // Use the Grip button to indicate that the user wants to exit
-          // presentation. Record both the press (start) and unpress (stop) as
-          // so that press doesn't leak to the public WebVR/XR that the user
-          // initiated this gesture.
-          // TODO: Choose the right button for this action
-          if (event.eventType == ::vr::EVREventType::VREvent_ButtonPress) {
-            aSystemState.controllerState[0].exitPresentStartFrameId =
-              aSystemState.displayState.lastSubmittedFrameId;
-          }
-          else {
-            MOZ_ASSERT(event.eventType == ::vr::EVREventType::VREvent_ButtonUnpress);
-            aSystemState.controllerState[0].exitPresentStopFrameId = 
-              aSystemState.displayState.lastSubmittedFrameId;
-          }
-        }
-        break;
-      }
 
       default:
         // ignore

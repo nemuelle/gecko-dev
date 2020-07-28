@@ -88,7 +88,8 @@ class OpenVRSession : public VRSession {
   void UpdateControllerPoses(VRSystemState& aState);
   void UpdateControllerButtons(VRSystemState& aState);
   void UpdateTelemetry(VRSystemState& aSystemState);
-  
+
+  void SetControllerExitPresentFrameId(VRSystemState& aState);  
 
   bool SubmitFrame(const VRLayerTextureHandle& aTextureHandle,
                    ::vr::ETextureType aTextureType,

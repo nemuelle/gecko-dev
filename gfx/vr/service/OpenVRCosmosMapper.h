@@ -18,6 +18,8 @@ class OpenVRCosmosMapper : public OpenVRControllerMapper {
   virtual ~OpenVRCosmosMapper() = default;
   virtual void UpdateButtons(VRControllerState& aControllerState,
                              ControllerInfo& aControllerInfo);
+  // Exit Present via bumper button (i.e., R1/L1)
+  virtual uint32_t GetExitPresentButtonMask() override { return 1ULL << 6; }
 };
 
 }  // namespace gfx
