@@ -871,7 +871,9 @@ void FxRWindowManager::ShowVirtualKeyboard(uint64_t aOverlayId) {
 }
 
 void FxRWindowManager::HideVirtualKeyboard() {
-  vr::VROverlay()->HideKeyboard();
+  if (vr::VROverlay() != nullptr) {
+    vr::VROverlay()->HideKeyboard();
+  }
 }
 
 /* FxRWindow Media Management */
@@ -925,11 +927,8 @@ void FxRWindowManager::ToggleMedia() {
       mozilla::dom::MediaControlService::GetService();
   mozilla::dom::MediaControlKeySource* source =
       service->GetMediaControlKeySource();
-  mozilla::dom::MediaSessionPlaybackState state = source->GetPlaybackState();
 
-  source->SetPlaybackState(state == mozilla::dom::MediaSessionPlaybackState::Playing ?
-      mozilla::dom::MediaSessionPlaybackState::Paused
-      : mozilla::dom::MediaSessionPlaybackState::Playing);
+  source->OnKeyPressed(mozilla::dom::MediaControlKey::Playpause);
 }
 
 // Forwarded from privileged javascript and supports changing projection mode
