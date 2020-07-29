@@ -99,49 +99,56 @@ function setupBrowser() {
 
     goHome();
 
-    browser.addProgressListener(
-      {
-        QueryInterface: ChromeUtils.generateQI([
-          "nsIWebProgressListener",
-          "nsISupportsWeakReference",
-        ]),
-        onLocationChange(aWebProgress, aRequest, aLocation, aFlags) {
-          // When URL changes, update the URL in the URL bar and update
-          // whether the back/forward buttons are enabled.
-          let newUrl = browser.currentURI.spec;
-          if (newUrl !== homeURL) {
-            urlInput.value = newUrl;
-          }
+    // With the introduction of BrowsingContextWebProgress, must ensure that
+    // there is a reference to this nsIWebProgressListener to keep it alive, as
+    // the native code only keeps a weak reference. Pin the reference to an
+    // expando on the browser objection to keep their lifetimes together.
+    // (see BrowsingContextWebProgress::UpdateAndNotifyListeners)
+    browser.pinnedProgressListener = {
+      QueryInterface: ChromeUtils.generateQI([
+        Ci.nsIWebProgressListener,
+        Ci.nsISupportsWeakReference,
+      ]),
+      onLocationChange(aWebProgress, aRequest, aLocation, aFlags) {
+        // When URL changes, update the URL in the URL bar and update
+        // whether the back/forward buttons are enabled.
+        let newUrl = browser.currentURI.spec;
+        if (newUrl !== homeURL) {
+          urlInput.value = newUrl;
+        }
 
-          backButton.disabled = !browser.canGoBack;
-          forwardButton.disabled = !browser.canGoForward;
-        },
-        onStateChange(aWebProgress, aRequest, aStateFlags, aStatus) {
-          if (aStateFlags & Ci.nsIWebProgressListener.STATE_STOP) {
-            // Network requests are complete. Disable (hide) the stop button
-            // and enable (show) the refresh button
-            refreshButton.disabled = false;
-            stopButton.disabled = true;
-          } else {
-            // Network requests are outstanding. Disable (hide) the refresh
-            // button and enable (show) the stop button
-            refreshButton.disabled = true;
-            stopButton.disabled = false;
-          }
-        },
-        onSecurityChange(aWebProgress, aRequest, aState) {
-          // Update the Secure Icon when the security status of the
-          // content changes
-          if (aState & Ci.nsIWebProgressListener.STATE_IS_SECURE) {
-            secureIcon.style.visibility = "visible";
-          } else {
-            secureIcon.style.visibility = "hidden";
-          }
-        },
+        backButton.disabled = !browser.canGoBack;
+        forwardButton.disabled = !browser.canGoForward;
       },
+      onStateChange(aWebProgress, aRequest, aStateFlags, aStatus) {
+        if (aStateFlags & Ci.nsIWebProgressListener.STATE_STOP) {
+          // Network requests are complete. Disable (hide) the stop button
+          // and enable (show) the refresh button
+          refreshButton.disabled = false;
+          stopButton.disabled = true;
+        } else {
+          // Network requests are outstanding. Disable (hide) the refresh
+          // button and enable (show) the stop button
+          refreshButton.disabled = true;
+          stopButton.disabled = false;
+        }
+      },
+      onSecurityChange(aWebProgress, aRequest, aState) {
+        // Update the Secure Icon when the security status of the
+        // content changes
+        if (aState & Ci.nsIWebProgressListener.STATE_IS_SECURE) {
+          secureIcon.style.visibility = "visible";
+        } else {
+          secureIcon.style.visibility = "hidden";
+        }
+      },
+    };
+
+    browser.addProgressListener(
+      browser.pinnedProgressListener,
       Ci.nsIWebProgress.NOTIFY_LOCATION |
         Ci.nsIWebProgress.NOTIFY_SECURITY |
-        Ci.nsIWebProgress.NOTIFY_STATE_REQUEST
+        Ci.nsIWebProgress.NOTIFY_ALL
     );
 
     FullScreen.init();
