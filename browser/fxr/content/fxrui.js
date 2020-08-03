@@ -10,7 +10,7 @@
 let homeURL = "https://webxr.today/?skipinteractive=true";
 // Bug 1586294 - Localize the privacy policy URL (Services.urlFormatter?)
 let privacyPolicyURL = "https://www.mozilla.org/en-US/privacy/firefox/";
-let reportIssueURL = "https://mzl.la/fxr";
+let reportIssueURL = "https://mzl.la/fxrpcbugs";
 let licenseURL =
   "https://mixedreality.mozilla.org/FirefoxRealityPC/license.html";
 
