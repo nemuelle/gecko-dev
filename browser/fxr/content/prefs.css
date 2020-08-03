@@ -79,7 +79,7 @@ body {
 .button_report_issue_icon {
   float:left;
   height: 30px;
-  margin: 5px;
+  margin-inline-end: 2px;
 }
 
 .button_report_text {
