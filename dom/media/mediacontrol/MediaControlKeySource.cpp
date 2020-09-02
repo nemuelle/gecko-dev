@@ -120,8 +120,10 @@ MediaSessionPlaybackState MediaControlKeySource::GetPlaybackState() const {
 }
 
 void MediaControlKeySource::OnKeyPressed(MediaControlKey aKey) {
+  MediaControlAction action;
+  action.mKey = aKey;
   for (auto& listener : mListeners) {
-    listener->OnKeyPressed(aKey);
+    listener->OnActionPerformed(action);
   }
 }
 
