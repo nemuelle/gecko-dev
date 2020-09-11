@@ -171,6 +171,12 @@ class WebRTCParent extends JSWindowActorParent {
         webRTC: state,
       });
     }
+
+    if (browser.fxrPermissionUpdate) {
+      // For Firefox Reality on Desktop, notify about a change in the permissions state
+      // so that its permissions UI can also update.
+      browser.fxrPermissionUpdate(state);
+    }
   }
 
   denyRequest(aRequest) {

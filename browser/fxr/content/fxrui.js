@@ -7,7 +7,8 @@
 /* import-globals-from permissions.js */
 
 // Configuration vars
-let homeURL = "https://webxr.today/?skipinteractive=true";
+//let homeURL = "https://webxr.today/?skipinteractive=true";
+let homeURL = "https://permission.site/";
 // Bug 1586294 - Localize the privacy policy URL (Services.urlFormatter?)
 let privacyPolicyURL = "https://www.mozilla.org/en-US/privacy/firefox/";
 let reportIssueURL = "https://mzl.la/fxrpcbugs";
@@ -96,6 +97,7 @@ function setupBrowser() {
     // Expose this function for Permissions to be used on this browser element
     // in other parts of the frontend
     browser.fxrPermissionPrompt = permissionPrompt;
+    browser.fxrPermissionUpdate = permissionUpdate;
 
     goHome();
 
@@ -409,9 +411,9 @@ function showReportIssue() {
 function permissionPrompt(aRequest) {
   let newPrompt;
   if (aRequest instanceof Ci.nsIContentPermissionRequest) {
-    newPrompt = new FxrContentPrompt(aRequest, this, finishPrompt);
+    newPrompt = new FxrContentPrompt(aRequest, this, finishPermissionPrompt);
   } else {
-    newPrompt = new FxrWebRTCPrompt(aRequest, this, finishPrompt);
+    newPrompt = new FxrWebRTCPrompt(aRequest, this, finishPermissionPrompt);
   }
 
   if (currentPermissionRequest) {
@@ -424,12 +426,38 @@ function permissionPrompt(aRequest) {
   }
 }
 
-function finishPrompt() {
+function finishPermissionPrompt(status) {
   if (pendingPermissionRequests.length) {
     // Prompt the next request
     currentPermissionRequest = pendingPermissionRequests.shift();
     currentPermissionRequest.showPrompt();
   } else {
     currentPermissionRequest = null;
+  }
+}
+
+
+function permissionUpdate(aState) {
+  // for now, only supporting microphone
+  // if should show
+  let icon = document.getElementById("ePermsMicrophone");
+  if (aState.hasOwnProperty("showMicrophoneIndicator")) {
+    // set the color based on .microphone
+    icon.style.display = "initial";
+    if (aState.microphone) {
+      icon.style.fill = "red";
+    } else {
+      icon.style.fill = "gray";
+    }
+  } else {
+    // hide
+    clearPermissionIcons();
+  }
+}
+
+function clearPermissionIcons() {
+  let permissionIcons = document.querySelectorAll(".urlbar_device_allowed");
+  for (let elem of permissionIcons) {
+    elem.style.removeProperty("display");
   }
 }

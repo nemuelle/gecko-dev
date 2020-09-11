@@ -183,6 +183,15 @@ body {
   display: inline-block;
 }
 
+.urlbar_device_allowed {
+  -moz-context-properties: fill;
+
+  height: 24px;
+  padding: 6px;
+
+  display: none;
+}
+
 .urlbar_input {
   /* Override window-default behavior of not being able to select anything in
    * the UI so that users can select in the search box.
@@ -223,6 +232,13 @@ body {
   width: 600px;
   height: 400px;
   border-radius: 20px;
+}
+
+.permission_prompt {
+  width: 400px;
+  height: 300px;
+  border-radius: 20px;
+  border: 1px solid var(--num16);
 }
 
 .modal_mask:not([hidden]) {
