@@ -22,6 +22,8 @@ class FxrPermissionPromptPrototype {
     this.request = aRequest;
     this.targetBrowser = aBrowser;
     this.responseCallback = aCallback;
+    this.promptTypes = null;
+    this.ui = null;
   }
 
   showPrompt() {
@@ -42,26 +44,22 @@ class FxrPermissionPromptPrototype {
       this.deny();
     }
 
-    this.responseCallback();
+    if (this.ui) {
+      this.ui.close();
+      this.ui = null;
+    }
+
+    let status = {};
+    status[allowed ? "allowed" : "denied"] = this.promptTypes;
+    this.responseCallback(status);
   }
 }
 
 // WebRTC-specific class implementation
 class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
-  showPrompt() {
-    for (let typeName of this.request.requestTypes) {
-      if (typeName !== "Microphone" && typeName !== "Camera") {
-        // Only Microphone and Camera requests are allowed. Automatically deny
-        // any other request.
-        this.defaultDeny();
-        return;
-      }
-    }
+  constructor(aRequest, aBrowser, aCallback) {
+    super(aRequest, aBrowser, aCallback);
 
-    super.showPrompt();
-  }
-
-  allow() {
     let { audioDevices, videoDevices } = this.request;
 
     let principal = Services.scriptSecurityManager.createContentPrincipalFromOrigin(
@@ -71,10 +69,10 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
     // For now, collect the first audio and video device by default. User
     // selection will be enabled later:
     // Bug 1594841 - Add UI to select device for WebRTC in FxR for Desktop
-    let allowedDevices = [];
+    this.promptedDevices = [];
 
     if (audioDevices.length) {
-      allowedDevices.push(audioDevices[0].deviceIndex);
+      this.promptedDevices.push(audioDevices[0]);
     }
 
     if (videoDevices.length) {
@@ -84,17 +82,45 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
         Services.perms.ALLOW_ACTION,
         Services.perms.EXPIRE_SESSION
       );
-      allowedDevices.push(videoDevices[0].deviceIndex);
+      this.promptedDevices.push(videoDevices[0]);
+    }
+  }
+
+  showPrompt() {
+    for (let typeName of this.request.requestTypes) {
+      if (typeName === "Microphone") {
+        // Only Microphone requests are allowed. Automatically deny any other
+        // request.
+        this.promptTypes = this.request.requestTypes;
+        this.ui = new FxrPermissionUI(
+          this,
+          this.promptTypes,
+          this.promptedDevices,
+          this.request.origin
+          );
+        
+        return;
+      }
     }
 
+    super.showPrompt();
+  }
+
+  allow() {
     // WebRTCChild doesn't currently care which actor
     // this is sent to and just uses the windowID.
+    let deviceIndices = [];
+    for (let i = 0; i < this.promptedDevices.length; i++) {
+      deviceIndices.push(this.promptedDevices[i].deviceIndex);
+    }
+
+
     this.targetBrowser.sendMessageToActor(
       "webrtc:Allow",
       {
         callID: this.request.callID,
         windowID: this.request.windowID,
-        devices: allowedDevices,
+        devices: deviceIndices,
       },
       "WebRTC"
     );
@@ -141,5 +167,83 @@ class FxrContentPrompt extends FxrPermissionPromptPrototype {
 
   deny() {
     this.request.cancel();
+  }
+}
+
+
+// This class displays the UI for the user make a permission choice.
+class FxrPermissionUI {
+  constructor(prompt, promptTypes, promptDevices, promptDomain) {
+    this.types = promptTypes;
+    this.domain = promptDomain;
+    this.prompt = prompt;
+
+
+    this.names = promptDevices[0].name;
+
+    this.init();
+  }
+
+  init() {
+    this.permsUI = document.createXULElement("browser");
+    this.permsUI.setAttribute("type", "chrome");
+    this.permsUI.classList.add("permission_prompt");
+
+    showModalContainer(this.permsUI);
+
+    this.permsUI.contentWindow.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        this.browserDoc = this.permsUI.contentWindow.document;
+        this.setupType();
+        this.setupButtons();
+      },
+      { once: true }
+    );
+
+    this.permsUI.loadURI("chrome://fxr/content/permissions.html", {
+      triggeringPrincipal: gSystemPrincipal,
+    });
+  }
+
+  close() {
+    clearModalContainer();
+  }
+
+  setupType() {
+    let typeContainer = this.browserDoc.getElementById("eTypeIconContainer");
+    let typeText = "";
+
+    for (let typeName of this.types) {
+      let img = this.browserDoc.createElement("img");
+      img.classList.add("type_icon");
+      img.src = "assets/icon-" + typeName.toLowerCase() + ".svg";
+      img.setAttribute("role", "description");
+      typeContainer.appendChild(img);
+
+      if (typeText === "") {
+        typeText = typeName;
+      } else {
+        typeText += " and " + typeName;
+      }
+    }
+
+    this.browserDoc.getElementById("eTypeTitle").textContent = typeText;
+    this.browserDoc.getElementById("eDeviceNames").textContent = " (" + this.names + ")";
+    this.browserDoc.getElementById(
+      "eDevices"
+    ).textContent = typeText.toLowerCase();
+
+    this.browserDoc.getElementById("eDomain").textContent = this.domain;
+  }
+
+  setupButtons() {
+    this.browserDoc
+      .getElementById("eDoNotAllow")
+      .addEventListener("click", () => this.prompt.handleResponse(false));
+
+    this.browserDoc
+      .getElementById("eAllow")
+      .addEventListener("click", () => this.prompt.handleResponse(true));
   }
 }

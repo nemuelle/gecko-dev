@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!--
+  This file contains the HTML UI for Web Permissions in Firefox Reality on Desktop
+-->
+
+<html width="340" height="450">
+<head>
+  <title>Firefox Reality Permission</title>
+  <link rel="stylesheet" href="common.css" />
+  <link rel="stylesheet" href="fxrui_blue.css" />
+  <link rel="stylesheet" href="permissions.css" />
+</head>
+
+<body>
+  <div id="eTypeIconContainer"></div>
+
+  <div id="eTypeTitle"></div>
+
+  <div class="msg_container">
+    Will you allow <span id="eDomain"></span> to access your
+    <span id="eDevices"></span><span id="eDeviceNames"></span>?
+  </div>
+
+  <div class="button_container">
+    <button class="choice " id="eDoNotAllow">Don't Allow</button>
+    <button class="choice " id="eAllow">Allow</button>
+  </div>
+</body>
