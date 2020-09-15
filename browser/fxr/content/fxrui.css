@@ -183,13 +183,31 @@ body {
   display: inline-block;
 }
 
-.urlbar_device_allowed {
+.urlbar_device {
   -moz-context-properties: fill;
 
-  height: 24px;
-  padding: 6px;
+  height: 32px;
+  padding-block: 2px;
+  padding-inline: 12px;
+  margin-inline: 4px;
 
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: inherit;
+ 
   display: none;
+}
+
+.urlbar_device_microphone_allowed {
+  background-image: url("assets/icon-microphone-allowed.svg");
+  fill: var(--num18);
+  display: initial;
+}
+.urlbar_device_microphone_blocked {
+  background-image: url("assets/icon-microphone-blocked.svg");
+  fill: var(--num04);
+  display: initial;
 }
 
 .urlbar_input {

@@ -37,6 +37,8 @@ browser.jar:
    content/browser/fxr/assets/icon-forward.svg          (content/assets/icon-forward.svg)
    content/browser/fxr/assets/icon-home.svg             (content/assets/icon-home.svg)
    content/browser/fxr/assets/icon-microphone.svg       (content/assets/icon-microphone.svg)
+   content/browser/fxr/assets/icon-microphone-allowed.svg      (content/assets/icon-microphone-allowed.svg)
+   content/browser/fxr/assets/icon-microphone-blocked.svg      (content/assets/icon-microphone-blocked.svg)
    content/browser/fxr/assets/icon-move.svg             (content/assets/icon-move.svg)
    content/browser/fxr/assets/icon-logo-settings-preview.png   (content/assets/icon-logo-settings-preview.png)
    content/browser/fxr/assets/icon-playpause-stopgap.svg       (content/assets/icon-playpause-stopgap.svg)
