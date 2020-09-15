@@ -7,8 +7,7 @@
 /* import-globals-from permissions.js */
 
 // Configuration vars
-//let homeURL = "https://webxr.today/?skipinteractive=true";
-let homeURL = "https://permission.site/";
+let homeURL = "https://webxr.today/?skipinteractive=true";
 // Bug 1586294 - Localize the privacy policy URL (Services.urlFormatter?)
 let privacyPolicyURL = "https://www.mozilla.org/en-US/privacy/firefox/";
 let reportIssueURL = "https://mzl.la/fxrpcbugs";
