@@ -16,6 +16,12 @@
  *
  */
 
+ChromeUtils.defineModuleGetter(
+  this,
+  "SitePermissions",
+  "resource:///modules/SitePermissions.jsm"
+);
+
 // Base class for managing permissions in FxR on PC
 class FxrPermissionPromptPrototype {
   constructor(aRequest, aBrowser, aCallback) {
@@ -56,13 +62,20 @@ class FxrPermissionPromptPrototype {
 }
 
 // WebRTC-specific class implementation
+//
+// For now-- only supports microphone permissions with the following behavior:
+// - per domain/principal, allowed is required for every request
+// - per domain/principal, denied is persisted for the session (i.e., must
+//   restart the browser )
+// The UI behavior to support this also includes code in WebRTCParent.jsm and
+// fxrui.js.
 class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
   constructor(aRequest, aBrowser, aCallback) {
     super(aRequest, aBrowser, aCallback);
 
     let { audioDevices, videoDevices } = this.request;
 
-    let principal = Services.scriptSecurityManager.createContentPrincipalFromOrigin(
+    this.principal = Services.scriptSecurityManager.createContentPrincipalFromOrigin(
       this.request.origin
     );
 
@@ -74,36 +87,26 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
     if (audioDevices.length) {
       this.promptedDevices.push(audioDevices[0]);
     }
-
-    if (videoDevices.length) {
-      Services.perms.addFromPrincipal(
-        principal,
-        "MediaManagerVideo",
-        Services.perms.ALLOW_ACTION,
-        Services.perms.EXPIRE_SESSION
-      );
-      this.promptedDevices.push(videoDevices[0]);
-    }
   }
 
   showPrompt() {
-    for (let typeName of this.request.requestTypes) {
-      if (typeName === "Microphone") {
-        // Only Microphone requests are allowed. Automatically deny any other
-        // request.
-        this.promptTypes = this.request.requestTypes;
-        this.ui = new FxrPermissionUI(
-          this,
-          this.promptTypes,
-          this.promptedDevices,
-          this.request.origin
-          );
-        
-        return;
-      }
-    }
+    if (this.request.requestTypes.length === 1
+      && this.request.requestTypes[0] === "Microphone") {
+      // Only Microphone requests are allowed. Automatically deny any other
+      // request.
+      this.promptTypes = this.request.requestTypes;
+      this.ui = new FxrPermissionUI(
+        this,
+        this.promptTypes,
+        this.promptedDevices,
+        this.request.origin
+        );
 
-    super.showPrompt();
+      return;
+    } else {
+      // Otherwise, proceed to deny by default
+      super.showPrompt();
+    }
   }
 
   allow() {
@@ -113,7 +116,6 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
     for (let i = 0; i < this.promptedDevices.length; i++) {
       deviceIndices.push(this.promptedDevices[i].deviceIndex);
     }
-
 
     this.targetBrowser.sendMessageToActor(
       "webrtc:Allow",
@@ -127,6 +129,15 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
   }
 
   deny() {
+    // Persist a deny for the duration of this session
+    SitePermissions.setForPrincipal(
+      this.principal,
+      "microphone",
+      SitePermissions.BLOCK,
+      SitePermissions.SCOPE_TEMPORARY,
+      this.targetBrowser
+    );
+
     this.targetBrowser.sendMessageToActor(
       "webrtc:Deny",
       {
