@@ -452,19 +452,15 @@ function permissionUpdate(aState) {
   icon.classList.remove("urlbar_device_microphone_blocked");
 
   // Next, determine if the icon should be visible and how
-  if (aState && aState.hasOwnProperty("sharing")
-     && aState.sharing === "microphone") {
+  if (aState?.sharing === "microphone") {
     // The microphone is in use, so show the icon in the navbar
     icon.classList.toggle("urlbar_device_microphone_allowed", true)
   } else {
-    let perms = SitePermissions.getAllPermissionDetailsForBrowser(browser);
-    if (perms && perms.length > 0) {
-      for (const perm of perms) {
-        if (perm.id === "microphone" && perm.state === SitePermissions.BLOCK) {
-          // The microphone has been denied, so indicate that in the navbar
-          icon.classList.toggle("urlbar_device_microphone_blocked", true);
-        }
-      }
+    let perm = SitePermissions.getForPrincipal(browser.contentPrincipal, "microphone", browser);    
+    
+    if (perm && perm.state === SitePermissions.BLOCK) {
+      // The microphone has been denied, so indicate that in the navbar
+      icon.classList.toggle("urlbar_device_microphone_blocked", true);
     }
   }
 
