@@ -96,6 +96,7 @@ function setupBrowser() {
     // Expose this function for Permissions to be used on this browser element
     // in other parts of the frontend
     browser.fxrPermissionPrompt = permissionPrompt;
+    browser.fxrPermissionUpdate = permissionUpdate;
 
     goHome();
 
@@ -119,6 +120,10 @@ function setupBrowser() {
 
         backButton.disabled = !browser.canGoBack;
         forwardButton.disabled = !browser.canGoForward;
+
+        if (!(aFlags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT)) {
+          permissionUpdate(null);
+        }
       },
       onStateChange(aWebProgress, aRequest, aStateFlags, aStatus) {
         if (aStateFlags & Ci.nsIWebProgressListener.STATE_STOP) {
@@ -404,12 +409,13 @@ function showReportIssue() {
 // Code to manage Permissions UI
 //
 
+// Called as a response to a permission request from the web platform
 function permissionPrompt(aRequest) {
   let newPrompt;
   if (aRequest instanceof Ci.nsIContentPermissionRequest) {
-    newPrompt = new FxrContentPrompt(aRequest, this, finishPrompt);
+    newPrompt = new FxrContentPrompt(aRequest, this, finishPermissionPrompt);
   } else {
-    newPrompt = new FxrWebRTCPrompt(aRequest, this, finishPrompt);
+    newPrompt = new FxrWebRTCPrompt(aRequest, this, finishPermissionPrompt);
   }
 
   if (currentPermissionRequest) {
@@ -422,7 +428,8 @@ function permissionPrompt(aRequest) {
   }
 }
 
-function finishPrompt() {
+// Callback when a prompt completes.
+function finishPermissionPrompt(status) {
   if (pendingPermissionRequests.length) {
     // Prompt the next request
     currentPermissionRequest = pendingPermissionRequests.shift();
@@ -430,4 +437,31 @@ function finishPrompt() {
   } else {
     currentPermissionRequest = null;
   }
+}
+
+// Called when navigating to another page (aState == null) or when an event
+// fires that the UI should be updated
+function permissionUpdate(aState) {  
+  // For now, only supporting microphone
+  let icon = document.getElementById("ePermsMicrophone");
+
+  // First, remove any classes that make the icon visible
+  icon.classList.remove("urlbar_device_microphone_allowed");
+  icon.classList.remove("urlbar_device_microphone_blocked");
+
+  // Next, determine if the icon should be visible and how
+  if (aState?.sharing === "microphone") {
+    // The microphone is in use, so show the icon in the navbar
+    icon.classList.toggle("urlbar_device_microphone_allowed", true)
+  } else {
+    let perm = SitePermissions.getForPrincipal(browser.contentPrincipal, "microphone", browser);    
+    
+    if (perm && perm.state === SitePermissions.BLOCK) {
+      // The microphone has been denied, so indicate that in the navbar
+      icon.classList.toggle("urlbar_device_microphone_blocked", true);
+    }
+  }
+
+  // If no state has been found above, then no icon is shown to indicate that
+  // no permission has been prompted or that permission prompt is possible
 }

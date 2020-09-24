@@ -120,15 +120,7 @@ class WebRTCParent extends JSWindowActorParent {
               .origin
           : this.manager.documentPrincipal.origin;
 
-        let browser = this.getBrowser();
-        if (browser.fxrPermissionPrompt) {
-          // For Firefox Reality on Desktop, switch to a different mechanism to
-          // prompt the user since fewer permissions are available and since many
-          // UI dependencies are not available.
-          browser.fxrPermissionPrompt(data);
-        } else {
-          prompt(this, this.getBrowser(), data);
-        }
+        prompt(this, this.getBrowser(), data);
         break;
       }
       case "webrtc:StopRecording":
@@ -170,6 +162,12 @@ class WebRTCParent extends JSWindowActorParent {
       tabbrowser.updateBrowserSharing(browser, {
         webRTC: state,
       });
+    }
+
+    if (browser.fxrPermissionUpdate) {
+      // For Firefox Reality on Desktop, notify about a change in the permissions state
+      // so that its permissions UI can also update.
+      browser.fxrPermissionUpdate(state);
     }
   }
 
@@ -473,6 +471,14 @@ function prompt(aActor, aBrowser, aRequest) {
   aBrowser.dispatchEvent(
     new aBrowser.ownerGlobal.CustomEvent("PermissionStateChange")
   );
+
+  if (aBrowser.fxrPermissionPrompt) {
+    // For Firefox Reality on Desktop, switch to a different mechanism to
+    // prompt the user since fewer permissions are available and since many
+    // UI dependencies are not available.
+    aBrowser.fxrPermissionPrompt(aRequest);
+    return;
+  } 
 
   let chromeDoc = aBrowser.ownerDocument;
   let stringBundle = chromeDoc.defaultView.gNavigatorBundle;

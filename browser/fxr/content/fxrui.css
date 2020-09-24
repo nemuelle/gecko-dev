@@ -183,6 +183,33 @@ body {
   display: inline-block;
 }
 
+.urlbar_device {
+  -moz-context-properties: fill;
+
+  height: 32px;
+  padding-block: 2px;
+  padding-inline: 12px;
+  margin-inline: 4px;
+
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: inherit;
+ 
+  display: none;
+}
+
+.urlbar_device_microphone_allowed {
+  background-image: url("assets/icon-microphone-allowed.svg");
+  fill: var(--num18);
+  display: initial;
+}
+.urlbar_device_microphone_blocked {
+  background-image: url("assets/icon-microphone-blocked.svg");
+  fill: var(--num04);
+  display: initial;
+}
+
 .urlbar_input {
   /* Override window-default behavior of not being able to select anything in
    * the UI so that users can select in the search box.
@@ -223,6 +250,13 @@ body {
   width: 600px;
   height: 400px;
   border-radius: 20px;
+}
+
+.permission_prompt {
+  width: 400px;
+  height: 300px;
+  border-radius: 20px;
+  border: 1px solid var(--num16);
 }
 
 .modal_mask:not([hidden]) {
