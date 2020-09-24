@@ -75,9 +75,7 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
 
     let { audioDevices, videoDevices } = this.request;
 
-    this.principal = Services.scriptSecurityManager.createContentPrincipalFromOrigin(
-      this.request.origin
-    );
+    this.principal = aBrowser.contentPrincipal;
 
     // For now, collect the first audio and video device by default. User
     // selection will be enabled later:
@@ -112,10 +110,9 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
   allow() {
     // WebRTCChild doesn't currently care which actor
     // this is sent to and just uses the windowID.
-    let deviceIndices = [];
-    for (let i = 0; i < this.promptedDevices.length; i++) {
-      deviceIndices.push(this.promptedDevices[i].deviceIndex);
-    }
+    let deviceIndices = this.promptedDevices.map(
+      (device) => device.deviceIndex
+    );
 
     this.targetBrowser.sendMessageToActor(
       "webrtc:Allow",
