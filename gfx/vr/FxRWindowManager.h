@@ -98,6 +98,7 @@ class FxRWindowManager final {
   vr::VROverlayError CreateTransportControlsOverlay();
   void SetRenderPid(uint64_t aOverlayId, uint32_t aPid);
   uint64_t GetOverlayId() const;
+  int32_t GetDxgiAdapterIndex() const { return mDxgiAdapterIndex; }
 
   bool AddWindow(nsPIDOMWindowOuter* aWindow);
   void RemoveWindow(uint64_t aOverlayId);

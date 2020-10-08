@@ -33,6 +33,9 @@
 #  define D3D_FL9_3_REQ_TEXTURE2D_U_OR_V_DIMENSION 4096
 #endif
 
+#define DXGI_ADAPTER_DEFAULT 0
+#define DXGI_ADAPTER_UNSPECIFIED -1
+
 struct ID3D11Device;
 struct IDCompositionDevice2;
 struct IDirectDraw7;
@@ -87,6 +90,8 @@ class DeviceManagerDx final {
 
   // Enumerate and return all outputs on the current adapter.
   nsTArray<DXGI_OUTPUT_DESC1> EnumerateOutputs();
+
+  uint32_t GetDXGIAdapterIndex();
 
   // find the IDXGIOutput with a description.Monitor matching
   // 'monitor'; returns false if not found or some error occurred.

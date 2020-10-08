@@ -25,6 +25,8 @@
 #include "nsExceptionHandler.h"
 #include "nsPrintfCString.h"
 #include "nsString.h"
+#include "nsAppRunner.h"
+#include "FxRWindowManager.h"
 
 #undef _WIN32_WINNT
 #define _WIN32_WINNT _WIN32_WINNT_WINBLUE
@@ -483,6 +485,16 @@ void DeviceManagerDx::CreateContentDevices() {
   }
 }
 
+uint32_t DeviceManagerDx::GetDXGIAdapterIndex() {
+  int32_t index = gfxVars::DXGIAdapterIndex();
+  if (index == DXGI_ADAPTER_UNSPECIFIED) {
+    return DXGI_ADAPTER_DEFAULT;
+  }
+  else {
+    return index;
+  }
+}
+
 IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
   if (mAdapter) {
     return mAdapter;
@@ -509,9 +521,21 @@ IDXGIAdapter1* DeviceManagerDx::GetDXGIAdapter() {
   }
 
   if (!mDeviceStatus) {
+    if (gFxREmbedded && FxRWindowManager::GetInstance()->VRinit()) {
+      // This scenario is true for the Main/UI process. In this case, Firefox
+      // Reality PC needs to ensure that Firefox starts with the same adapter
+      // that the VR platform is running so that frames can be properly passed
+      // to that platform. This is critical on multi-GPU systems where Firefox
+      // may default to a different GPU than the VR platform and headset.
+      // Store the index used as a gfxvar so that it can be referenced in the
+      // GPU process as well.
+      gfxVars::SetDXGIAdapterIndex(
+        FxRWindowManager::GetInstance()->GetDxgiAdapterIndex());
+    }
+
     // If we haven't created a device yet, and have no existing device status,
     // then this must be the compositor device. Pick the first adapter we can.
-    if (FAILED(factory1->EnumAdapters1(0, getter_AddRefs(mAdapter)))) {
+    if (FAILED(factory1->EnumAdapters1(GetDXGIAdapterIndex(), getter_AddRefs(mAdapter)))) {
       return nullptr;
     }
   } else {
