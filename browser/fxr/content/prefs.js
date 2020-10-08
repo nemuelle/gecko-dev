@@ -26,8 +26,8 @@ window.addEventListener(
 
 function initAboutInfo() {
   // Bug 1586294 - Update FxR Desktop Settings to use Fluent
-  document.getElementById("eFxrVersion").textContent = "version 0.90";
-  document.getElementById("eFxrDate").textContent = "(2020-07-29)";
+  document.getElementById("eFxrVersion").textContent = "version 0.91";
+  document.getElementById("eFxrDate").textContent = "(2020-10-08)";
   document.getElementById("eFxVersion").textContent =
     "Firefox version " + Services.appinfo.version;
 }

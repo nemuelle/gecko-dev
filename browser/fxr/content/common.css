@@ -41,4 +41,5 @@
 
 .modal_content {
   position: absolute;
+  align-self: center;
 }
