@@ -907,6 +907,7 @@ void FxRWindowManager::OnFullScreenChange(uint64_t aOuterWindowID,
       HideTransportControls();
       vr::VROverlayError overlayError = ChangeProjectionMode(VIDEO_PROJECTION_2D);
       MOZ_ASSERT(overlayError == vr::VROverlayError_None);
+      mozilla::Unused << overlayError;
     }
   }
 }
@@ -1061,9 +1062,9 @@ void FxRWindowManager::EnsureTransportControls() {
     nsCOMPtr<mozIDOMWindowProxy> newDOMWindow;
     nsresult result = wwatch->OpenWindow(
       nullptr,                            // aParent
-      "chrome://fxr/content/fxr-transport-controls.html",  // aUrl
-      "_blank",                           // aName
-      "chrome,dialog=no,all",             // aFeatures
+      "chrome://fxr/content/fxr-transport-controls.html"_ns,  // aUrl
+      "_blank"_ns,                           // aName
+      "chrome,dialog=no,all"_ns,             // aFeatures
       nullptr,  // aArguments
       getter_AddRefs(newDOMWindow));
     MOZ_ASSERT(result == NS_OK);
