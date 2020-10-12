@@ -246,7 +246,7 @@ function setupUrlBar() {
 
       browser.loadUrlWithSystemPrincipal(preferredURI.spec);
       browser.focus();
-      ChromeUtils.setFxrKeyboardVisibility(window.windowUtils.outerWindowID, false);
+      ChromeUtils.setFxrKeyboardVisibility(window.docShell.outerWindowID, false);
     }
   });
 
@@ -286,7 +286,7 @@ function setupWinManagementButtons() {
           break;
 
         case "eFocusWindow":
-          ChromeUtils.toggleFxrWindowFocus(window.windowUtils.outerWindowID);
+          ChromeUtils.toggleFxrWindowFocus(window.docShell.outerWindowID);
           break;
 
         case "eResizeWindow":
@@ -343,7 +343,7 @@ function displayResizeContainer(show) {
 }
 
 function doOverlayResize(scale) {
-  ChromeUtils.setFxrSizeScale(window.windowUtils.outerWindowID, scale);
+  ChromeUtils.setFxrSizeScale(window.docShell.outerWindowID, scale);
 }
 
 function doOverlayMove(enable) {
@@ -360,7 +360,7 @@ function doOverlayMove(enable) {
     d.addEventListener(
       "mousedown",
       () => { ChromeUtils.setFxrMoveOverlay(
-        window.windowUtils.outerWindowID, enable); },
+        window.docShell.outerWindowID, enable); },
       { "once" : true }
     );
 
@@ -369,7 +369,7 @@ function doOverlayMove(enable) {
     clearModalContainer();
   }
 
-  ChromeUtils.setFxrMoveOverlay(window.windowUtils.outerWindowID, enable);
+  ChromeUtils.setFxrMoveOverlay(window.docShell.outerWindowID, enable);
 }
 
 //
