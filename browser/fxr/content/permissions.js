@@ -87,9 +87,13 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
     }
   }
 
+  isOnlyMicrophoneRequest() {
+    return this.request.requestTypes.length === 1
+    && this.request.requestTypes[0] === "Microphone";
+  }
+
   showPrompt() {
-    if (this.request.requestTypes.length === 1
-      && this.request.requestTypes[0] === "Microphone") {
+    if (this.isOnlyMicrophoneRequest()) {
       // Only Microphone requests are allowed. Automatically deny any other
       // request.
       this.promptTypes = this.request.requestTypes;
@@ -126,14 +130,16 @@ class FxrWebRTCPrompt extends FxrPermissionPromptPrototype {
   }
 
   deny() {
-    // Persist a deny for the duration of this session
-    SitePermissions.setForPrincipal(
-      this.principal,
-      "microphone",
-      SitePermissions.BLOCK,
-      SitePermissions.SCOPE_TEMPORARY,
-      this.targetBrowser
-    );
+    if (this.isOnlyMicrophoneRequest()) {
+      // Persist a deny for the duration of this session
+      SitePermissions.setForPrincipal(
+        this.principal,
+        "microphone",
+        SitePermissions.BLOCK,
+        SitePermissions.SCOPE_TEMPORARY,
+        this.targetBrowser
+        );
+    }
 
     this.targetBrowser.sendMessageToActor(
       "webrtc:Deny",
