@@ -706,7 +706,20 @@ std::shared_ptr<EglDisplay> GLLibraryEGL::DefaultDisplay(
   auto ret = mDefaultDisplay.lock();
   if (ret) return ret;
 
-  ret = CreateDisplay(false, out_failureId);
+  int32_t index = gfxVars::DXGIAdapterIndex();
+  if (index == DXGI_ADAPTER_UNSPECIFIED) {
+    // When no adapter has been specified, use the defaults.
+    ret = CreateDisplay(false, out_failureId);
+  }
+  else {
+    // In this case, rely on DeviceManagerDx to create a device on the
+    // specified adapter index. This adapter is used to create the default
+    // EglDisplay.
+    RefPtr<ID3D11Device> device;
+    mozilla::gfx::DeviceManagerDx::Get()->CreateNewDeviceOnDxgiAdapter(device);
+    ret = CreateDisplay(device);
+  }
+
   mDefaultDisplay = ret;
   return ret;
 }

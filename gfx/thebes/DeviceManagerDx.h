@@ -133,6 +133,8 @@ class DeviceManagerDx final {
   // on the next frame.
   void ForceDeviceReset(ForcedDeviceResetReason aReason);
 
+  bool CreateNewDeviceOnDxgiAdapter(RefPtr<ID3D11Device>& aOutDevice);
+
  private:
   // Pre-load any compositor resources that are expensive, and are needed when
   // we attempt to create a compositor.

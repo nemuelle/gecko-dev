@@ -717,6 +717,23 @@ void DeviceManagerDx::CreateCompositorDevice(FeatureState& d3d11) {
   mCompositorDevice->SetExceptionMode(0);
 }
 
+// Helper function to create a new device that is not tracked by DeviceManager.
+// Currently used in the scenario where WebL needs to createa a new device on a
+// specific adapter (which is tracked by DeviceManager).
+bool DeviceManagerDx::CreateNewDeviceOnDxgiAdapter(RefPtr<ID3D11Device>& aOutDevice) {
+  RefPtr<IDXGIAdapter1> adapter = GetDXGIAdapter();
+
+  HRESULT hr;
+  RefPtr<ID3D11Device> device;
+  return CreateDevice(
+    adapter,
+    D3D_DRIVER_TYPE_UNKNOWN,
+    D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+    hr,
+    aOutDevice
+  );
+}
+
 bool DeviceManagerDx::CreateDevice(IDXGIAdapter* aAdapter,
                                    D3D_DRIVER_TYPE aDriverType, UINT aFlags,
                                    HRESULT& aResOut,
