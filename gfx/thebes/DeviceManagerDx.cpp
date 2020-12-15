@@ -723,6 +723,10 @@ void DeviceManagerDx::CreateCompositorDevice(FeatureState& d3d11) {
 bool DeviceManagerDx::CreateNewDeviceOnDxgiAdapter(RefPtr<ID3D11Device>& aOutDevice) {
   RefPtr<IDXGIAdapter1> adapter = GetDXGIAdapter();
 
+  if (!LoadD3D11()) {
+    return false;
+  }
+
   HRESULT hr;
   RefPtr<ID3D11Device> device;
   return CreateDevice(
